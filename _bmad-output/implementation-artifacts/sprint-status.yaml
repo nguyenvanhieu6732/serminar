@@ -52,7 +52,7 @@ development_status:
 
   epic-2: in-progress
   2-1-run-deterministic-prechecks-before-llm-analysis: done
-  2-2-build-bounded-llm-input-from-issue-title-and-body: backlog
+  2-2-build-bounded-llm-input-from-issue-title-and-body: done
   2-3-produce-structured-preflight-report-output: backlog
   2-4-validate-and-normalize-preflight-report-schema: backlog
   2-5-assign-conservative-preflight-status: backlog

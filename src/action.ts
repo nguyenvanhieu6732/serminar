@@ -2,6 +2,7 @@ import * as core from "@actions/core"
 import { context } from "@actions/github"
 import { loadConfig } from "./config.js"
 import { parseIssueLabeledEvent } from "./github-context.js"
+import { buildLlmAnalysisInput } from "./llm-client.js"
 import { runPrechecks } from "./prechecks.js"
 
 export async function run(): Promise<void> {
@@ -9,7 +10,7 @@ export async function run(): Promise<void> {
     const config = loadConfig()
 
     core.info(
-      `Configuration loaded: github-token present, openai-api-key present, ready-label "${config.readyLabel}".`
+      `Configuration loaded: required credentials present, ready-label "${config.readyLabel}".`
     )
 
     const parseResult = parseIssueLabeledEvent({
@@ -32,7 +33,13 @@ export async function run(): Promise<void> {
       }
 
       core.info(
-        `Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: enough_context. LLM analysis allowed for a later story.`
+        `Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: enough_context. Preparing bounded LLM input.`
+      )
+
+      const llmInput = buildLlmAnalysisInput(parseResult.issue)
+
+      core.info(
+        `Bounded LLM input prepared for issue #${llmInput.logMetadata.issueNumber}: body_truncated=${llmInput.logMetadata.truncated}, included_body_chars=${llmInput.logMetadata.includedBodyLength}. LLM call deferred.`
       )
       return
     }

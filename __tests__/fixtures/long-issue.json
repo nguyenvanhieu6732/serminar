@@ -1,0 +1,17 @@
+{
+  "action": "labeled",
+  "issue": {
+    "number": 47,
+    "title": "Document importer loses table rows",
+    "body": "LONG_BODY_PLACEHOLDER"
+  },
+  "label": {
+    "name": "ready-for-dev"
+  },
+  "repository": {
+    "name": "demo-repo",
+    "owner": {
+      "login": "demo-owner"
+    }
+  }
+}
