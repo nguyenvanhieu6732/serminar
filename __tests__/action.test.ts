@@ -13,10 +13,44 @@ import shortIssuePayload from "./fixtures/short-issue.json"
 
 jest.mock("@actions/core")
 
+const mockResponsesCreate = jest.fn()
+
+jest.mock("openai", () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    responses: {
+      create: mockResponsesCreate
+    }
+  }))
+}))
+
 const mockedCore = jest.mocked(core)
 const githubContext = context as typeof context & {
   eventName: string
   payload: unknown
+}
+
+const structuredReport = {
+  status: "needs_clarification",
+  missing_context: [
+    {
+      category: "acceptance_criteria",
+      detail: "The issue needs testable acceptance criteria."
+    }
+  ],
+  risk_explanation:
+    "The work artifact lacks pass/fail criteria, increasing implementation risk.",
+  suggested_questions: [
+    { text: "What behavior should prove this work is complete?" }
+  ],
+  draft_acceptance_criteria: [],
+  confidence: "medium",
+  evidence: [
+    {
+      source: "body",
+      detail: "The body describes work but omits acceptance criteria."
+    }
+  ]
 }
 
 function mockInputs(inputs: Record<string, string>): void {
@@ -26,6 +60,9 @@ function mockInputs(inputs: Record<string, string>): void {
 describe("run", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockResponsesCreate.mockResolvedValue({
+      output_text: JSON.stringify(structuredReport)
+    })
     githubContext.eventName = "issues"
     githubContext.payload = issueLabeledPayload
   })
@@ -52,8 +89,15 @@ describe("run", () => {
       "Deterministic prechecks completed for issue #42: enough_context. Preparing bounded LLM input."
     )
     expect(mockedCore.info).toHaveBeenCalledWith(
-      "Bounded LLM input prepared for issue #42: body_truncated=false, included_body_chars=67. LLM call deferred."
+      "Bounded LLM input prepared for issue #42: body_truncated=false, included_body_chars=67."
     )
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis requested for issue #42."
+    )
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis completed for issue #42; validation deferred."
+    )
+    expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(githubToken)
     )
@@ -101,7 +145,11 @@ describe("run", () => {
       'Issue #43 received ready label "triage"; preflight eligibility confirmed.'
     )
     expect(mockedCore.info).toHaveBeenCalledWith(
-      "Bounded LLM input prepared for issue #43: body_truncated=false, included_body_chars=66. LLM call deferred."
+      "Bounded LLM input prepared for issue #43: body_truncated=false, included_body_chars=66."
+    )
+    expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis completed for issue #43; validation deferred."
     )
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
@@ -126,8 +174,9 @@ describe("run", () => {
     await run()
 
     expect(mockedCore.info).toHaveBeenCalledWith(
-      "Bounded LLM input prepared for issue #47: body_truncated=true, included_body_chars=6000. LLM call deferred."
+      "Bounded LLM input prepared for issue #47: body_truncated=true, included_body_chars=6000."
     )
+    expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(longIssuePayload.issue.title)
     )
@@ -156,8 +205,9 @@ describe("run", () => {
     await run()
 
     expect(mockedCore.info).toHaveBeenCalledWith(
-      "Bounded LLM input prepared for issue #48: body_truncated=false, included_body_chars=234. LLM call deferred."
+      "Bounded LLM input prepared for issue #48: body_truncated=false, included_body_chars=234."
     )
+    expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining("ignore previous instructions")
     )
@@ -181,6 +231,7 @@ describe("run", () => {
     expect(mockedCore.info).toHaveBeenCalledWith(
       "Skipping issue #44: pull requests are not supported by the MVP."
     )
+    expect(mockResponsesCreate).not.toHaveBeenCalled()
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(pullRequestLabeledPayload.issue.body)
     )
@@ -207,6 +258,7 @@ describe("run", () => {
     expect(mockedCore.info).toHaveBeenCalledWith(
       "Deterministic prechecks completed for issue #45: empty_body -> high_risk. LLM analysis skipped."
     )
+    expect(mockResponsesCreate).not.toHaveBeenCalled()
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining("Bounded LLM input prepared")
     )
@@ -236,6 +288,7 @@ describe("run", () => {
     expect(mockedCore.info).toHaveBeenCalledWith(
       "Deterministic prechecks completed for issue #46: short_body -> high_risk. LLM analysis skipped."
     )
+    expect(mockResponsesCreate).not.toHaveBeenCalled()
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining("Bounded LLM input prepared")
     )
@@ -261,6 +314,43 @@ describe("run", () => {
 
     expect(mockedCore.setFailed).toHaveBeenCalledWith(
       "Setup error: Missing required input: openai-api-key"
+    )
+  })
+
+  it("fails safely when structured LLM analysis fails without logging private content", async () => {
+    const githubToken = "gh-secret-token"
+    const openaiApiKey = "openai-secret-key"
+    mockResponsesCreate.mockRejectedValue(new Error("provider secret detail"))
+    mockInputs({
+      "github-token": githubToken,
+      "openai-api-key": openaiApiKey
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis requested for issue #42."
+    )
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis failed for issue #42: provider_error."
+    )
+    expect(mockedCore.setFailed).toHaveBeenCalledWith(
+      "LLM structured analysis failed: provider_error"
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(issueLabeledPayload.issue.title)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(issueLabeledPayload.issue.body)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(githubToken)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(openaiApiKey)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining("provider secret detail")
     )
   })
 })

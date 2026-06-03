@@ -1,10 +1,24 @@
 import {
   buildLlmAnalysisInput,
-  MAX_ISSUE_BODY_CHARS
+  MAX_ISSUE_BODY_CHARS,
+  OpenAiLlmClient,
+  PREFLIGHT_REPORT_RESPONSE_FORMAT
 } from "../src/llm-client.js"
 import type { ReadyIssueContext } from "../src/github-context.js"
+import OpenAI from "openai"
 import issueLabeledPayload from "./fixtures/issue-labeled.json"
 import promptInjectionPayload from "./fixtures/prompt-injection-issue.json"
+
+const mockResponsesCreate = jest.fn()
+
+jest.mock("openai", () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    responses: {
+      create: mockResponsesCreate
+    }
+  }))
+}))
 
 function readyIssue(
   overrides: Partial<ReadyIssueContext> = {}
@@ -18,6 +32,33 @@ function readyIssue(
     repo: issueLabeledPayload.repository.name,
     ...overrides
   }
+}
+
+const structuredReport = {
+  status: "needs_clarification",
+  missing_context: [
+    {
+      category: "acceptance_criteria",
+      detail: "The issue does not include testable pass/fail criteria."
+    }
+  ],
+  risk_explanation:
+    "Implementation risk comes from missing acceptance criteria in the work artifact.",
+  suggested_questions: [
+    { text: "What observable behavior should prove this is complete?" }
+  ],
+  draft_acceptance_criteria: [
+    {
+      text: "Suggested: Given the user completes the flow, then the expected confirmation is shown."
+    }
+  ],
+  confidence: "medium",
+  evidence: [
+    {
+      source: "body",
+      detail: "The body describes the goal but not acceptance criteria."
+    }
+  ]
 }
 
 describe("buildLlmAnalysisInput", () => {
@@ -137,5 +178,100 @@ describe("buildLlmAnalysisInput", () => {
     expect(JSON.stringify(input.logMetadata)).not.toContain(
       issueLabeledPayload.issue.body
     )
+  })
+})
+
+describe("OpenAiLlmClient", () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockResponsesCreate.mockResolvedValue({
+      output_text: JSON.stringify(structuredReport)
+    })
+  })
+
+  it("requests strict structured output and returns the raw structured report payload", async () => {
+    const input = buildLlmAnalysisInput(readyIssue())
+    const client = new OpenAiLlmClient("openai-secret-key")
+
+    const report = await client.analyzeIssue(input)
+    const request = mockResponsesCreate.mock.calls[0][0]
+
+    expect(OpenAI).toHaveBeenCalledWith({ apiKey: "openai-secret-key" })
+    expect(report).toEqual(structuredReport)
+    expect(request.text.format).toEqual(PREFLIGHT_REPORT_RESPONSE_FORMAT)
+    expect(request.text.format.type).toBe("json_schema")
+    expect(request.text.format.strict).toBe(true)
+    expect(request.text.format.schema.properties.status.enum).toEqual([
+      "ready",
+      "needs_clarification",
+      "high_risk"
+    ])
+    expect(request.text.format.schema.properties.confidence.enum).toEqual([
+      "low",
+      "medium",
+      "high"
+    ])
+    expect(JSON.stringify(request)).not.toContain("## Dev Ticket Preflight")
+    expect(JSON.stringify(request)).not.toContain("raw freeform")
+  })
+
+  it("keeps issue content in untrusted task data and excludes non-MVP context sources", async () => {
+    const input = buildLlmAnalysisInput(
+      readyIssue({
+        issueNumber: promptInjectionPayload.issue.number,
+        issueTitle: promptInjectionPayload.issue.title,
+        issueBody: promptInjectionPayload.issue.body
+      })
+    )
+    const client = new OpenAiLlmClient("openai-secret-key")
+
+    await client.analyzeIssue(input)
+    const requestText = JSON.stringify(mockResponsesCreate.mock.calls[0][0])
+
+    expect(requestText).toContain("ignore previous instructions")
+    expect(requestText).toContain("untrusted_issue_data")
+    expect(requestText).toContain("do not score, blame, or evaluate people")
+    expect(requestText).not.toContain("review comment from payload")
+    expect(requestText).not.toContain("diff --git")
+    expect(requestText).not.toContain("linked_pull_request")
+    expect(requestText).not.toContain("repository file content")
+    expect(requestText).not.toContain('"action":"labeled"')
+    expect(requestText).not.toContain("openai-secret-key")
+  })
+
+  it("includes required PreflightReport fields and omits mutation fields from the schema", async () => {
+    const client = new OpenAiLlmClient("openai-secret-key")
+
+    await client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+    const schema =
+      mockResponsesCreate.mock.calls[0][0].text.format.schema.properties
+    const serializedSchema = JSON.stringify(schema)
+
+    expect(Object.keys(schema)).toEqual([
+      "status",
+      "missing_context",
+      "risk_explanation",
+      "suggested_questions",
+      "draft_acceptance_criteria",
+      "confidence",
+      "evidence"
+    ])
+    expect(serializedSchema).not.toContain("labels")
+    expect(serializedSchema).not.toContain("assignees")
+    expect(serializedSchema).not.toContain("checks")
+    expect(serializedSchema).not.toContain("files")
+    expect(serializedSchema).not.toContain("pull_requests")
+    expect(serializedSchema).not.toContain("issue_comments")
+    expect(serializedSchema).not.toContain("issue_state")
+    expect(serializedSchema).not.toContain("markdown")
+  })
+
+  it("throws a safe provider error without exposing raw provider output", async () => {
+    mockResponsesCreate.mockResolvedValue({ output_text: "" })
+    const client = new OpenAiLlmClient("openai-secret-key")
+
+    await expect(
+      client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+    ).rejects.toThrow("OpenAI structured response did not include output_text")
   })
 })
