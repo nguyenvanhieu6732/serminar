@@ -2,6 +2,7 @@ import * as core from "@actions/core"
 import { context } from "@actions/github"
 import { loadConfig } from "./config.js"
 import { parseIssueLabeledEvent } from "./github-context.js"
+import { runPrechecks } from "./prechecks.js"
 
 export async function run(): Promise<void> {
   try {
@@ -20,6 +21,18 @@ export async function run(): Promise<void> {
     if (parseResult.kind === "ready") {
       core.info(
         `Issue #${parseResult.issue.issueNumber} received ready label "${parseResult.issue.labelName}"; preflight eligibility confirmed.`
+      )
+      const precheckResult = runPrechecks(parseResult.issue)
+
+      if (precheckResult.kind === "report") {
+        core.info(
+          `Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: ${precheckResult.reason} -> ${precheckResult.report.status}. LLM analysis skipped.`
+        )
+        return
+      }
+
+      core.info(
+        `Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: enough_context. LLM analysis allowed for a later story.`
       )
       return
     }

@@ -1,0 +1,17 @@
+{
+  "action": "labeled",
+  "issue": {
+    "number": 46,
+    "title": "Fix billing bug",
+    "body": "Fix checkout."
+  },
+  "label": {
+    "name": "ready-for-dev"
+  },
+  "repository": {
+    "name": "demo-repo",
+    "owner": {
+      "login": "demo-owner"
+    }
+  }
+}

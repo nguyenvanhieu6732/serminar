@@ -2,9 +2,11 @@ import * as core from "@actions/core"
 import { context } from "@actions/github"
 import { run } from "../src/action.js"
 import { DEFAULT_READY_LABEL } from "../src/config.js"
+import emptyIssuePayload from "./fixtures/empty-issue.json"
 import issueLabeledPayload from "./fixtures/issue-labeled.json"
 import issueOtherLabelPayload from "./fixtures/issue-other-label.json"
 import pullRequestLabeledPayload from "./fixtures/pull-request-labeled.json"
+import shortIssuePayload from "./fixtures/short-issue.json"
 
 jest.mock("@actions/core")
 
@@ -42,6 +44,9 @@ describe("run", () => {
     )
     expect(mockedCore.info).toHaveBeenCalledWith(
       'Issue #42 received ready label "ready-for-dev"; preflight eligibility confirmed.'
+    )
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Deterministic prechecks completed for issue #42: enough_context. LLM analysis allowed for a later story."
     )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(githubToken)
@@ -83,6 +88,9 @@ describe("run", () => {
     expect(mockedCore.info).toHaveBeenCalledWith(
       'Issue #43 received ready label "triage"; preflight eligibility confirmed.'
     )
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Deterministic prechecks completed for issue #43: enough_context. LLM analysis allowed for a later story."
+    )
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
 
@@ -102,6 +110,58 @@ describe("run", () => {
     )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(pullRequestLabeledPayload.issue.body)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(githubToken)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(openaiApiKey)
+    )
+    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+  })
+
+  it("logs empty-body precheck results safely without failing", async () => {
+    const githubToken = "gh-secret-token"
+    const openaiApiKey = "openai-secret-key"
+    githubContext.payload = emptyIssuePayload
+    mockInputs({
+      "github-token": githubToken,
+      "openai-api-key": openaiApiKey
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Deterministic prechecks completed for issue #45: empty_body -> high_risk. LLM analysis skipped."
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(emptyIssuePayload.issue.title)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(githubToken)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(openaiApiKey)
+    )
+    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+  })
+
+  it("logs short-body precheck results safely without failing", async () => {
+    const githubToken = "gh-secret-token"
+    const openaiApiKey = "openai-secret-key"
+    githubContext.payload = shortIssuePayload
+    mockInputs({
+      "github-token": githubToken,
+      "openai-api-key": openaiApiKey
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Deterministic prechecks completed for issue #46: short_body -> high_risk. LLM analysis skipped."
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(shortIssuePayload.issue.body)
     )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(githubToken)
