@@ -31,6 +31,13 @@ export async function run(): Promise<void> {
       return
     }
 
+    if (parseResult.reason === "pull_request") {
+      core.info(
+        `Skipping issue #${parseResult.issueNumber}: pull requests are not supported by the MVP.`
+      )
+      return
+    }
+
     core.info(
       "Skipping run: unsupported event payload for issue label preflight."
     )

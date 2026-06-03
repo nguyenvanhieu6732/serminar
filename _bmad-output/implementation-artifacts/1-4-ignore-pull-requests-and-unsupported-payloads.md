@@ -4,7 +4,7 @@ baseline_commit: NO_VCS
 
 # Story 1.4: Ignore Pull Requests and Unsupported Payloads
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,37 +21,37 @@ so that the MVP only evaluates GitHub Issues.
 
 ## Tasks / Subtasks
 
-- [ ] Add pull request labeled payload coverage. (AC: 1)
-  - [ ] Add `__tests__/fixtures/pull-request-labeled.json` using the GitHub `issues.labeled` shape where the `issue` object contains `pull_request`.
-  - [ ] Keep fixture data synthetic and minimal: repository owner/name, issue number, title/body, ready label, and `pull_request` marker.
-  - [ ] Do not include real tokens, private issue content, or real user data.
-- [ ] Extend `src/github-context.ts` to explicitly skip PR-backed issue payloads. (AC: 1, 2)
-  - [ ] Add a skip reason such as `"pull_request"` to `IssueEventParseResult`.
-  - [ ] Detect `issue.pull_request` after confirming an `issues.labeled` payload has the required issue, label, and repository fields.
-  - [ ] Return `kind: "skipped"` with reason `"pull_request"` and safe metadata such as `issueNumber` and `labelName`.
-  - [ ] Preserve existing skip behavior for `unsupported_event`, `unsupported_payload`, and `label_mismatch`.
-  - [ ] Continue treating title/body as untrusted data; extract or inspect only what is required for routing.
-- [ ] Update `src/action.ts` orchestration logs for the new skip reason. (AC: 1, 2)
-  - [ ] Log a clear safe message for PR skip, for example: `Skipping issue #<number>: pull requests are not supported by the MVP.`
-  - [ ] Keep `action.ts` orchestration-only; parsing details stay in `github-context.ts`.
-  - [ ] Do not call the LLM, run deterministic readiness prechecks, render reports, post comments, or mutate GitHub state.
-- [ ] Add focused tests for PR and malformed payload paths. (AC: 1, 2)
-  - [ ] Update `__tests__/github-context.test.ts` to assert PR payloads return the explicit `"pull_request"` skip reason.
-  - [ ] Keep tests for unsupported event names and malformed payload shapes.
-  - [ ] Add or update `__tests__/action.test.ts` to assert PR skip logs safely and does not call `core.setFailed`.
-  - [ ] Assert logs do not include full issue body, full payload JSON, token values, OpenAI API key, or private content.
-- [ ] Verify no GitHub mutation paths were introduced. (AC: 1, 2)
-  - [ ] Confirm no GitHub client/comment module is added or invoked in this story.
-  - [ ] Confirm no labels, assignees, issue body, checks, files, PRs, or issue state are mutated.
-- [ ] Verify the baseline locally. (AC: 1, 2)
-  - [ ] Run `npm run format:check`.
-  - [ ] Run `npm run lint`.
-  - [ ] Run `npm test`.
-  - [ ] Run `npm run build`.
-  - [ ] Run `npm run package`.
-  - [ ] Run `npm run package:check`.
-  - [ ] Run `npm run all`.
-  - [ ] Record exact commands and any environment/runtime caveats in the Dev Agent Record.
+- [x] Add pull request labeled payload coverage. (AC: 1)
+  - [x] Add `__tests__/fixtures/pull-request-labeled.json` using the GitHub `issues.labeled` shape where the `issue` object contains `pull_request`.
+  - [x] Keep fixture data synthetic and minimal: repository owner/name, issue number, title/body, ready label, and `pull_request` marker.
+  - [x] Do not include real tokens, private issue content, or real user data.
+- [x] Extend `src/github-context.ts` to explicitly skip PR-backed issue payloads. (AC: 1, 2)
+  - [x] Add a skip reason such as `"pull_request"` to `IssueEventParseResult`.
+  - [x] Detect `issue.pull_request` after confirming an `issues.labeled` payload has the required issue, label, and repository fields.
+  - [x] Return `kind: "skipped"` with reason `"pull_request"` and safe metadata such as `issueNumber` and `labelName`.
+  - [x] Preserve existing skip behavior for `unsupported_event`, `unsupported_payload`, and `label_mismatch`.
+  - [x] Continue treating title/body as untrusted data; extract or inspect only what is required for routing.
+- [x] Update `src/action.ts` orchestration logs for the new skip reason. (AC: 1, 2)
+  - [x] Log a clear safe message for PR skip, for example: `Skipping issue #<number>: pull requests are not supported by the MVP.`
+  - [x] Keep `action.ts` orchestration-only; parsing details stay in `github-context.ts`.
+  - [x] Do not call the LLM, run deterministic readiness prechecks, render reports, post comments, or mutate GitHub state.
+- [x] Add focused tests for PR and malformed payload paths. (AC: 1, 2)
+  - [x] Update `__tests__/github-context.test.ts` to assert PR payloads return the explicit `"pull_request"` skip reason.
+  - [x] Keep tests for unsupported event names and malformed payload shapes.
+  - [x] Add or update `__tests__/action.test.ts` to assert PR skip logs safely and does not call `core.setFailed`.
+  - [x] Assert logs do not include full issue body, full payload JSON, token values, OpenAI API key, or private content.
+- [x] Verify no GitHub mutation paths were introduced. (AC: 1, 2)
+  - [x] Confirm no GitHub client/comment module is added or invoked in this story.
+  - [x] Confirm no labels, assignees, issue body, checks, files, PRs, or issue state are mutated.
+- [x] Verify the baseline locally. (AC: 1, 2)
+  - [x] Run `npm run format:check`.
+  - [x] Run `npm run lint`.
+  - [x] Run `npm test`.
+  - [x] Run `npm run build`.
+  - [x] Run `npm run package`.
+  - [x] Run `npm run package:check`.
+  - [x] Run `npm run all`.
+  - [x] Record exact commands and any environment/runtime caveats in the Dev Agent Record.
 
 ## Dev Notes
 
@@ -232,20 +232,43 @@ Using underscores such as `INPUT_GITHUB_TOKEN` will not satisfy `github-token`.
 
 ### Agent Model Used
 
-TBD
+GPT-5 Codex
 
 ### Debug Log References
 
-TBD
+- `npm test -- --runTestsByPath __tests__/github-context.test.ts __tests__/action.test.ts` - red phase failed because PR payload was still treated as `ready`.
+- `npm test -- --runTestsByPath __tests__/github-context.test.ts __tests__/action.test.ts` - passed after adding explicit `"pull_request"` skip handling.
+- `npm run format:check` - passed.
+- `npm run lint` - passed.
+- `npm test` - passed, 3 test suites and 16 tests.
+- `npm run build` - passed.
+- `npm run package` - passed and regenerated `dist/index.js`, `dist/index.js.map`, and `dist/licenses.txt`.
+- `npm run package:check` - initially failed because `dist/index.js` had an unstaged generated diff after packaging; passed after staging `dist/index.js` for the script's `git diff --exit-code -- dist/index.js` check.
+- `npm run all` - passed after the staged generated bundle check.
+- `rg -n "github-comments|createComment|issues\\.createComment|addLabels|removeLabel|assignees|checkRuns|pulls\\." src __tests__` - no matches, confirming no GitHub write/mutation path was added.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Added synthetic `pull-request-labeled.json` fixture for an `issues.labeled` payload with `issue.pull_request`.
+- Extended `parseIssueLabeledEvent()` with explicit `"pull_request"` skip results carrying safe issue number and label metadata.
+- Updated action orchestration to log a safe PR skip message without failing the Action.
+- Added parser and action tests for PR skip behavior and safe logging.
+- Preserved existing ready-label, custom-label, label-mismatch, unsupported-event, and unsupported-payload behavior.
+- No LLM calls, prechecks, report rendering, GitHub comments, or GitHub mutations were added.
 
 ### Change Log
 
 - 2026-06-03: Story created and marked ready-for-dev.
+- 2026-06-03: Implemented explicit PR skip handling, tests, and regenerated bundle.
 
 ### File List
 
-TBD
+- `src/action.ts`
+- `src/github-context.ts`
+- `__tests__/action.test.ts`
+- `__tests__/github-context.test.ts`
+- `__tests__/fixtures/pull-request-labeled.json`
+- `dist/index.js`
+- `dist/index.js.map`
+- `dist/licenses.txt`

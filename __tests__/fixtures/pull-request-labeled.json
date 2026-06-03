@@ -1,0 +1,21 @@
+{
+  "action": "labeled",
+  "issue": {
+    "number": 44,
+    "title": "Update dependency lockfile",
+    "body": "Synthetic pull request payload represented through the issues webhook.",
+    "pull_request": {
+      "url": "https://api.github.com/repos/demo-owner/demo-repo/pulls/44",
+      "html_url": "https://github.com/demo-owner/demo-repo/pull/44"
+    }
+  },
+  "label": {
+    "name": "ready-for-dev"
+  },
+  "repository": {
+    "name": "demo-repo",
+    "owner": {
+      "login": "demo-owner"
+    }
+  }
+}

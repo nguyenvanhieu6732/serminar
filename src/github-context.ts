@@ -16,6 +16,7 @@ export type IssueEventParseResult =
       readonly kind: "skipped"
       readonly reason:
         | "label_mismatch"
+        | "pull_request"
         | "unsupported_event"
         | "unsupported_payload"
       readonly labelName?: string
@@ -34,6 +35,7 @@ interface IssueLabeledPayload {
     readonly number: number
     readonly title: string
     readonly body: string | null
+    readonly pull_request?: unknown
   }
   readonly label: {
     readonly name: string
@@ -61,6 +63,15 @@ export function parseIssueLabeledEvent({
 
   const labelName = payload.label.name
   const issueNumber = payload.issue.number
+
+  if (isRecord(payload.issue.pull_request)) {
+    return {
+      kind: "skipped",
+      reason: "pull_request",
+      issueNumber,
+      labelName
+    }
+  }
 
   if (labelName !== readyLabel) {
     return {

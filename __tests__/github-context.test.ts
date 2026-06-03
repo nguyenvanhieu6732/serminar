@@ -1,5 +1,6 @@
 import issueLabeledPayload from "./fixtures/issue-labeled.json"
 import issueOtherLabelPayload from "./fixtures/issue-other-label.json"
+import pullRequestLabeledPayload from "./fixtures/pull-request-labeled.json"
 import { parseIssueLabeledEvent } from "../src/github-context.js"
 
 describe("parseIssueLabeledEvent", () => {
@@ -47,6 +48,21 @@ describe("parseIssueLabeledEvent", () => {
     })
 
     expect(result.kind).toBe("ready")
+  })
+
+  it("skips pull request payloads explicitly", () => {
+    const result = parseIssueLabeledEvent({
+      eventName: "issues",
+      payload: pullRequestLabeledPayload,
+      readyLabel: "ready-for-dev"
+    })
+
+    expect(result).toEqual({
+      kind: "skipped",
+      reason: "pull_request",
+      issueNumber: 44,
+      labelName: "ready-for-dev"
+    })
   })
 
   it("skips unsupported event names", () => {

@@ -4,6 +4,7 @@ import { run } from "../src/action.js"
 import { DEFAULT_READY_LABEL } from "../src/config.js"
 import issueLabeledPayload from "./fixtures/issue-labeled.json"
 import issueOtherLabelPayload from "./fixtures/issue-other-label.json"
+import pullRequestLabeledPayload from "./fixtures/pull-request-labeled.json"
 
 jest.mock("@actions/core")
 
@@ -81,6 +82,32 @@ describe("run", () => {
 
     expect(mockedCore.info).toHaveBeenCalledWith(
       'Issue #43 received ready label "triage"; preflight eligibility confirmed.'
+    )
+    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+  })
+
+  it("skips pull request payloads without failing or logging private content", async () => {
+    const githubToken = "gh-secret-token"
+    const openaiApiKey = "openai-secret-key"
+    githubContext.payload = pullRequestLabeledPayload
+    mockInputs({
+      "github-token": githubToken,
+      "openai-api-key": openaiApiKey
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Skipping issue #44: pull requests are not supported by the MVP."
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(pullRequestLabeledPayload.issue.body)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(githubToken)
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(openaiApiKey)
     )
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
