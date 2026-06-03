@@ -1,0 +1,17 @@
+name: Dev Ticket Preflight
+description: Analyze ready-labeled GitHub Issues before implementation starts.
+author: serminal
+inputs:
+  github-token:
+    description: GitHub token used by later stories to post the preflight comment.
+    required: true
+  openai-api-key:
+    description: OpenAI API key used by later stories for issue readiness analysis.
+    required: true
+  ready-label:
+    description: GitHub Issue label that marks an issue ready for preflight analysis.
+    required: false
+    default: ready-for-dev
+runs:
+  using: node24
+  main: dist/index.js

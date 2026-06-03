@@ -1,0 +1,45 @@
+{
+  "name": "dev-ticket-preflight",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A TypeScript GitHub Action for preflight analysis of ready development tickets.",
+  "main": "dist/index.js",
+  "scripts": {
+    "all": "npm run format:check && npm run lint && npm run test && npm run build && npm run package && npm run package:check",
+    "build": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "package": "ncc build src/index.ts --source-map --license licenses.txt",
+    "package:check": "node scripts/check-dist.mjs",
+    "test": "jest --coverage"
+  },
+  "keywords": [
+    "actions",
+    "github-action",
+    "typescript"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^24.0.0",
+    "@vercel/ncc": "^0.38.3",
+    "eslint": "^9.28.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.33.1"
+  },
+  "overrides": {
+    "undici": "^6.26.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

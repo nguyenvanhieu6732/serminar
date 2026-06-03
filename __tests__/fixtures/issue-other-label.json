@@ -1,0 +1,17 @@
+{
+  "action": "labeled",
+  "issue": {
+    "number": 43,
+    "title": "Draft billing settings page",
+    "body": "Sketch early requirements before implementation details are ready."
+  },
+  "label": {
+    "name": "triage"
+  },
+  "repository": {
+    "name": "demo-repo",
+    "owner": {
+      "login": "demo-owner"
+    }
+  }
+}
