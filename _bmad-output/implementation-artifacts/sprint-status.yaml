@@ -47,7 +47,7 @@ development_status:
   1-2-configure-action-inputs-and-secrets: done
   1-3-trigger-only-on-ready-labeled-issues: done
   1-4-ignore-pull-requests-and-unsupported-payloads: done
-  1-5-prevent-obvious-duplicate-concurrent-runs: backlog
+  1-5-prevent-obvious-duplicate-concurrent-runs: done
   epic-1-retrospective: optional
 
   epic-2: backlog
