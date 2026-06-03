@@ -35410,6 +35410,10 @@ async function run() {
             core.info(`Skipping issue #${parseResult.issueNumber}: label "${parseResult.labelName}" does not match ready label "${config.readyLabel}".`);
             return;
         }
+        if (parseResult.reason === "pull_request") {
+            core.info(`Skipping issue #${parseResult.issueNumber}: pull requests are not supported by the MVP.`);
+            return;
+        }
         core.info("Skipping run: unsupported event payload for issue label preflight.");
     }
     catch (error) {
@@ -35504,6 +35508,14 @@ function parseIssueLabeledEvent({ eventName, payload, readyLabel }) {
     }
     const labelName = payload.label.name;
     const issueNumber = payload.issue.number;
+    if (isRecord(payload.issue.pull_request)) {
+        return {
+            kind: "skipped",
+            reason: "pull_request",
+            issueNumber,
+            labelName
+        };
+    }
     if (labelName !== readyLabel) {
         return {
             kind: "skipped",
