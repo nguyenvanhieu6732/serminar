@@ -35393,6 +35393,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const github_1 = __nccwpck_require__(3228);
 const config_js_1 = __nccwpck_require__(2973);
 const github_context_js_1 = __nccwpck_require__(8886);
+const prechecks_js_1 = __nccwpck_require__(6147);
 async function run() {
     try {
         const config = (0, config_js_1.loadConfig)();
@@ -35404,6 +35405,12 @@ async function run() {
         });
         if (parseResult.kind === "ready") {
             core.info(`Issue #${parseResult.issue.issueNumber} received ready label "${parseResult.issue.labelName}"; preflight eligibility confirmed.`);
+            const precheckResult = (0, prechecks_js_1.runPrechecks)(parseResult.issue);
+            if (precheckResult.kind === "report") {
+                core.info(`Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: ${precheckResult.reason} -> ${precheckResult.report.status}. LLM analysis skipped.`);
+                return;
+            }
+            core.info(`Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: enough_context. LLM analysis allowed for a later story.`);
             return;
         }
         if (parseResult.reason === "label_mismatch") {
@@ -35565,6 +35572,81 @@ function isRecord(value) {
 }
 function isNullableString(value) {
     return typeof value === "string" || value === null;
+}
+
+
+/***/ }),
+
+/***/ 6147:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MIN_USEFUL_BODY_LENGTH = void 0;
+exports.runPrechecks = runPrechecks;
+exports.MIN_USEFUL_BODY_LENGTH = 40;
+function runPrechecks(issue) {
+    const body = issue.issueBody.trim();
+    if (body.length === 0) {
+        return {
+            kind: "report",
+            reason: "empty_body",
+            report: createInsufficientContextReport("empty_body")
+        };
+    }
+    if (body.length < exports.MIN_USEFUL_BODY_LENGTH) {
+        return {
+            kind: "report",
+            reason: "short_body",
+            report: createInsufficientContextReport("short_body")
+        };
+    }
+    return { kind: "continue" };
+}
+function createInsufficientContextReport(reason) {
+    return {
+        status: "high_risk",
+        missing_context: [
+            {
+                category: "actor_or_role",
+                detail: "The issue should identify who needs the change or who is affected."
+            },
+            {
+                category: "expected_behavior",
+                detail: "The issue should describe the behavior to implement or fix."
+            },
+            {
+                category: "acceptance_criteria",
+                detail: "The issue should include testable pass/fail criteria."
+            },
+            {
+                category: "edge_and_failure_behavior",
+                detail: "The issue should describe important edge cases or failure behavior."
+            }
+        ],
+        risk_explanation: reason === "empty_body"
+            ? "The issue body is empty, so there is not enough implementation detail to safely analyze the work."
+            : "The issue body does not provide enough implementation detail to safely analyze the work.",
+        suggested_questions: [
+            { text: "Who is the user or actor affected by this work?" },
+            { text: "What behavior should change, and what should stay the same?" },
+            { text: "What are the testable acceptance criteria for completion?" },
+            {
+                text: "What edge cases, errors, or permission concerns should be handled?"
+            }
+        ],
+        draft_acceptance_criteria: [],
+        confidence: "high",
+        evidence: [
+            {
+                source: "precheck",
+                detail: reason === "empty_body"
+                    ? "Issue body was empty."
+                    : "Issue body was below minimum useful length."
+            }
+        ]
+    };
 }
 
 
