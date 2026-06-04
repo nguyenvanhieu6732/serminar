@@ -78,4 +78,5 @@ function escapeInlineText(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/([\\`*_[\]{}#+|-])/g, "\\$1")
+    .replace(/^(\d+)([.)])(?=\s)/, "$1\\$2")
 }

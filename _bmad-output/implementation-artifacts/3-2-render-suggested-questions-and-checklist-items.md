@@ -4,7 +4,7 @@ baseline_commit: 30ac58b
 
 # Story 3.2: Render Suggested Questions and Checklist Items
 
-Status: review
+Status: done
 
 Story Key: `3-2-render-suggested-questions-and-checklist-items`
 
@@ -57,6 +57,11 @@ So that I can update the Issue without needing a separate PM process.
   - [x] Run `rtk npm test`.
   - [x] Run `rtk npm run build`.
   - [x] Run the broader project validation command if one is already established by the repository.
+
+### Review Findings
+
+- [x] [Review][Patch] Escape ordered-list markers in standalone risk explanation text [src/report-renderer.ts:14]
+- [x] [Review][Patch] Add coverage for the exact 10-item missing-context budget boundary [__tests__/report-renderer.test.ts:170]
 
 ## Dev Notes
 
@@ -217,6 +222,8 @@ GPT-5 Codex
 - Added a deterministic 10-line combined checklist budget that never drops missing context.
 - Preserved Story 3.1 behavior and kept Draft Acceptance Criteria and GitHub write behavior out of scope.
 - Full validation passed: 9 suites, 97 tests, format, lint, TypeScript build, package, and package check.
+- Code review patches escaped ordered-list markers in standalone risk text and added exact 10-item budget coverage.
+- Post-review validation passed: 9 suites, 98 tests, format, lint, TypeScript build, package, and package check.
 
 ### File List
 
@@ -229,3 +236,4 @@ GPT-5 Codex
 
 - 2026-06-04: Story created and marked ready for development.
 - 2026-06-04: Implemented suggested-question and risk-explanation rendering with checklist budgeting; marked ready for review.
+- 2026-06-04: Addressed code review findings and marked done.

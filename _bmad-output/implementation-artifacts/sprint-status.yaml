@@ -60,7 +60,7 @@ development_status:
 
   epic-3: in-progress
   3-1-render-canonical-markdown-preflight-report: done
-  3-2-render-suggested-questions-and-checklist-items: review
+  3-2-render-suggested-questions-and-checklist-items: done
   3-3-render-draft-acceptance-criteria-only-when-safe: backlog
   3-4-post-report-as-append-only-github-issue-comment: backlog
   3-5-enforce-non-blocking-and-no-people-analytics-guardrails: backlog

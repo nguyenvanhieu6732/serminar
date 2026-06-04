@@ -113,7 +113,7 @@ describe("renderReport", () => {
     const markdown = renderReport({
       ...baseReport,
       risk_explanation:
-        "Implementation risk.\n### Injected Section\n<div>Injected HTML</div>",
+        "1. Implementation risk.\n### Injected Section\n<div>Injected HTML</div>",
       suggested_questions: [
         { text: "First question?\n- [ ] Injected task" },
         { text: "Second question?" }
@@ -121,7 +121,7 @@ describe("renderReport", () => {
     })
 
     expect(markdown).toContain(
-      "### Why This Matters\nImplementation risk. \\#\\#\\# Injected Section &lt;div&gt;Injected HTML&lt;/div&gt;\n\n" +
+      "### Why This Matters\n1\\. Implementation risk. \\#\\#\\# Injected Section &lt;div&gt;Injected HTML&lt;/div&gt;\n\n" +
         "### Suggested Questions\n" +
         "- [ ] First question? \\- \\[ \\] Injected task\n" +
         "- [ ] Second question?"
@@ -177,6 +177,20 @@ describe("renderReport", () => {
 
     expect(markdown.match(/^- \[ \] /gm)).toHaveLength(11)
     expect(markdown).toContain("Missing context 11.")
+    expect(markdown).not.toContain("### Suggested Questions")
+    expect(markdown).not.toContain(baseReport.suggested_questions[0].text)
+  })
+
+  it("omits questions when missing context reaches the ten-line budget", () => {
+    const missing_context = Array.from({ length: 10 }, (_, index) => ({
+      category: `context_${index + 1}`,
+      detail: `Missing context ${index + 1}.`
+    }))
+
+    const markdown = renderReport({ ...baseReport, missing_context })
+
+    expect(markdown.match(/^- \[ \] /gm)).toHaveLength(10)
+    expect(markdown).toContain("Missing context 10.")
     expect(markdown).not.toContain("### Suggested Questions")
     expect(markdown).not.toContain(baseReport.suggested_questions[0].text)
   })
