@@ -141,10 +141,9 @@ async function postReport(
     approvedReport = enforceReportGuardrails(report)
   } catch (error) {
     if (error instanceof ReportGuardrailError) {
-      core.info(
+      core.warning(
         `Preflight report rejected for issue #${issue.issueNumber}: unsafe_report.`
       )
-      core.setFailed("Preflight report rejected: unsafe_report")
       return
     }
 

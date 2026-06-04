@@ -35464,8 +35464,7 @@ async function postReport(githubToken, issue, report) {
     }
     catch (error) {
         if (error instanceof report_guardrails_js_1.ReportGuardrailError) {
-            core.info(`Preflight report rejected for issue #${issue.issueNumber}: unsafe_report.`);
-            core.setFailed("Preflight report rejected: unsafe_report");
+            core.warning(`Preflight report rejected for issue #${issue.issueNumber}: unsafe_report.`);
             return;
         }
         throw error;
