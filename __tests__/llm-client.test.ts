@@ -232,6 +232,8 @@ describe("OpenAiLlmClient", () => {
     expect(requestText).toContain("ignore previous instructions")
     expect(requestText).toContain("untrusted_issue_data")
     expect(requestText).toContain("do not score, blame, or evaluate people")
+    expect(requestText).toContain("work artifact")
+    expect(requestText).toContain("workflow gates")
     expect(requestText).not.toContain("review comment from payload")
     expect(requestText).not.toContain("diff --git")
     expect(requestText).not.toContain("linked_pull_request")

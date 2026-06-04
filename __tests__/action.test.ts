@@ -15,6 +15,7 @@ import shortIssuePayload from "./fixtures/short-issue.json"
 import {
   mockCreateComment,
   mockDeleteComment,
+  mockForbiddenGitHubMutations,
   mockUpdateComment
 } from "./mocks/actions-github.js"
 
@@ -461,6 +462,38 @@ describe("run", () => {
     )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining("provider secret detail")
+    )
+  })
+
+  it("rejects unsafe report language without posting or logging model content", async () => {
+    const unsafeText = "The author failed to provide acceptance criteria."
+    mockResponsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        ...structuredReport,
+        risk_explanation: unsafeText
+      })
+    })
+    mockInputs({
+      "github-token": "gh-secret-token",
+      "openai-api-key": "openai-secret-key"
+    })
+
+    await run()
+
+    expect(mockCreateComment).not.toHaveBeenCalled()
+    expect(mockUpdateComment).not.toHaveBeenCalled()
+    expect(mockDeleteComment).not.toHaveBeenCalled()
+    for (const mutation of mockForbiddenGitHubMutations) {
+      expect(mutation).not.toHaveBeenCalled()
+    }
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Preflight report rejected for issue #42: unsafe_report."
+    )
+    expect(mockedCore.setFailed).toHaveBeenCalledWith(
+      "Preflight report rejected: unsafe_report"
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining(unsafeText)
     )
   })
 

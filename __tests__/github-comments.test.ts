@@ -2,6 +2,7 @@ import {
   getOctokit,
   mockCreateComment,
   mockDeleteComment,
+  mockForbiddenGitHubMutations,
   mockUpdateComment
 } from "./mocks/actions-github.js"
 import { createIssueComment } from "../src/github-comments.js"
@@ -51,6 +52,9 @@ describe("createIssueComment", () => {
     expect(mockCreateComment).toHaveBeenCalledTimes(2)
     expect(mockUpdateComment).not.toHaveBeenCalled()
     expect(mockDeleteComment).not.toHaveBeenCalled()
+    for (const mutation of mockForbiddenGitHubMutations) {
+      expect(mutation).not.toHaveBeenCalled()
+    }
   })
 
   it("propagates API failures without a fallback write", async () => {
@@ -71,5 +75,8 @@ describe("createIssueComment", () => {
     expect(mockCreateComment).toHaveBeenCalledTimes(1)
     expect(mockUpdateComment).not.toHaveBeenCalled()
     expect(mockDeleteComment).not.toHaveBeenCalled()
+    for (const mutation of mockForbiddenGitHubMutations) {
+      expect(mutation).not.toHaveBeenCalled()
+    }
   })
 })

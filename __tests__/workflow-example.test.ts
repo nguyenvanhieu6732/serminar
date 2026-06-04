@@ -24,6 +24,14 @@ describe("workflow example", () => {
     expect(workflow).not.toContain("fake-openai-key")
   })
 
+  it("requests only advisory issue-comment write permission", () => {
+    expect(workflow).toContain("permissions:\n  issues: write")
+    expect(workflow).not.toContain("checks: write")
+    expect(workflow).not.toContain("contents: write")
+    expect(workflow).not.toContain("pull-requests: write")
+    expect(workflow).not.toContain("actions: write")
+  })
+
   it("documents duplicate prevention and its limits", () => {
     expect(readme).toContain("Duplicate prevention")
     expect(readme).toContain("concurrency.group")

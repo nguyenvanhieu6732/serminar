@@ -16,6 +16,10 @@ import {
   validatePreflightReport
 } from "./report-schema.js"
 import { renderReport } from "./report-renderer.js"
+import {
+  enforceReportGuardrails,
+  ReportGuardrailError
+} from "./report-guardrails.js"
 
 export async function run(): Promise<void> {
   try {
@@ -131,7 +135,23 @@ async function postReport(
   },
   report: PreflightReport
 ): Promise<void> {
-  const body = renderReport(report)
+  let approvedReport: PreflightReport
+
+  try {
+    approvedReport = enforceReportGuardrails(report)
+  } catch (error) {
+    if (error instanceof ReportGuardrailError) {
+      core.info(
+        `Preflight report rejected for issue #${issue.issueNumber}: unsafe_report.`
+      )
+      core.setFailed("Preflight report rejected: unsafe_report")
+      return
+    }
+
+    throw error
+  }
+
+  const body = renderReport(approvedReport)
 
   try {
     const commentId = await createIssueComment({
