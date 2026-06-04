@@ -1,5 +1,5 @@
 # generated: 2026-06-03
-# last_updated: 2026-06-03
+# last_updated: 2026-06-04
 # project: serminal
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-03
-last_updated: 2026-06-03
+last_updated: 2026-06-04
 project: serminal
 project_key: NOKEY
 tracking_system: file-system
@@ -54,7 +54,7 @@ development_status:
   2-1-run-deterministic-prechecks-before-llm-analysis: done
   2-2-build-bounded-llm-input-from-issue-title-and-body: done
   2-3-produce-structured-preflight-report-output: done
-  2-4-validate-and-normalize-preflight-report-schema: backlog
+  2-4-validate-and-normalize-preflight-report-schema: review
   2-5-assign-conservative-preflight-status: backlog
   epic-2-retrospective: optional
 

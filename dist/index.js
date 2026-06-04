@@ -35395,6 +35395,7 @@ const config_js_1 = __nccwpck_require__(2973);
 const github_context_js_1 = __nccwpck_require__(8886);
 const llm_client_js_1 = __nccwpck_require__(6310);
 const prechecks_js_1 = __nccwpck_require__(6147);
+const report_schema_js_1 = __nccwpck_require__(9265);
 async function run() {
     try {
         const config = (0, config_js_1.loadConfig)();
@@ -35417,14 +35418,21 @@ async function run() {
             core.info(`LLM structured analysis requested for issue #${llmInput.logMetadata.issueNumber}.`);
             try {
                 const llmClient = new llm_client_js_1.OpenAiLlmClient(config.openaiApiKey);
-                await llmClient.analyzeIssue(llmInput);
+                const rawReport = await llmClient.analyzeIssue(llmInput);
+                const report = (0, report_schema_js_1.validatePreflightReport)(rawReport);
+                core.info(`LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`);
             }
-            catch {
+            catch (error) {
+                if (error instanceof llm_client_js_1.LlmOutputParseError ||
+                    error instanceof report_schema_js_1.PreflightReportValidationError) {
+                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.`);
+                    core.setFailed("LLM structured analysis failed validation: invalid_report");
+                    return;
+                }
                 core.info(`LLM structured analysis failed for issue #${llmInput.logMetadata.issueNumber}: provider_error.`);
                 core.setFailed("LLM structured analysis failed: provider_error");
                 return;
             }
-            core.info(`LLM structured analysis completed for issue #${llmInput.logMetadata.issueNumber}; validation deferred.`);
             return;
         }
         if (parseResult.reason === "label_mismatch") {
@@ -35600,12 +35608,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.OpenAiLlmClient = exports.PREFLIGHT_REPORT_RESPONSE_FORMAT = exports.DEFAULT_OPENAI_MODEL = exports.MAX_ISSUE_BODY_CHARS = void 0;
+exports.OpenAiLlmClient = exports.PREFLIGHT_REPORT_RESPONSE_FORMAT = exports.LlmOutputParseError = exports.DEFAULT_OPENAI_MODEL = exports.MAX_ISSUE_BODY_CHARS = void 0;
 exports.buildLlmAnalysisInput = buildLlmAnalysisInput;
 const openai_1 = __importDefault(__nccwpck_require__(2583));
 const security_js_1 = __nccwpck_require__(3725);
 exports.MAX_ISSUE_BODY_CHARS = 6000;
 exports.DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+class LlmOutputParseError extends Error {
+    constructor(message = "Invalid structured LLM output") {
+        super(message);
+        this.name = "LlmOutputParseError";
+    }
+}
+exports.LlmOutputParseError = LlmOutputParseError;
 exports.PREFLIGHT_REPORT_RESPONSE_FORMAT = {
     type: "json_schema",
     name: "preflight_report",
@@ -35759,10 +35774,18 @@ class OpenAiLlmClient {
             }
         });
         const outputText = extractOutputText(response);
-        return JSON.parse(outputText);
+        return parseOutputText(outputText);
     }
 }
 exports.OpenAiLlmClient = OpenAiLlmClient;
+function parseOutputText(outputText) {
+    try {
+        return JSON.parse(outputText);
+    }
+    catch {
+        throw new LlmOutputParseError();
+    }
+}
 function extractOutputText(response) {
     if (typeof response === "object" &&
         response !== null &&
@@ -35771,7 +35794,7 @@ function extractOutputText(response) {
         response.output_text.length > 0) {
         return response.output_text;
     }
-    throw new Error("OpenAI structured response did not include output_text");
+    throw new LlmOutputParseError();
 }
 
 
@@ -35847,6 +35870,140 @@ function createInsufficientContextReport(reason) {
             }
         ]
     };
+}
+
+
+/***/ }),
+
+/***/ 9265:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PreflightReportValidationError = void 0;
+exports.validatePreflightReport = validatePreflightReport;
+const PREFLIGHT_REPORT_KEYS = new Set([
+    "status",
+    "missing_context",
+    "risk_explanation",
+    "suggested_questions",
+    "draft_acceptance_criteria",
+    "confidence",
+    "evidence"
+]);
+const MISSING_CONTEXT_ITEM_KEYS = new Set(["category", "detail"]);
+const CHECKLIST_ITEM_KEYS = new Set(["text"]);
+const EVIDENCE_ITEM_KEYS = new Set(["source", "detail"]);
+const PREFLIGHT_STATUSES = new Set([
+    "ready",
+    "needs_clarification",
+    "high_risk"
+]);
+const CONFIDENCE_VALUES = new Set(["low", "medium", "high"]);
+const EVIDENCE_SOURCES = new Set([
+    "title",
+    "body",
+    "precheck"
+]);
+class PreflightReportValidationError extends Error {
+    constructor(message = "Invalid preflight report") {
+        super(message);
+        this.name = "PreflightReportValidationError";
+    }
+}
+exports.PreflightReportValidationError = PreflightReportValidationError;
+function validatePreflightReport(raw) {
+    const report = requirePlainObject(raw);
+    rejectUnexpectedKeys(report);
+    const riskExplanation = requireString(report.risk_explanation).trim();
+    if (riskExplanation.length === 0) {
+        throwInvalidReport();
+    }
+    return {
+        status: requireEnum(report.status, PREFLIGHT_STATUSES),
+        missing_context: normalizeMissingContextItems(report.missing_context),
+        risk_explanation: riskExplanation,
+        suggested_questions: normalizeChecklistItems(report.suggested_questions),
+        draft_acceptance_criteria: normalizeChecklistItems(report.draft_acceptance_criteria),
+        confidence: requireEnum(report.confidence, CONFIDENCE_VALUES),
+        evidence: normalizeEvidenceItems(report.evidence)
+    };
+}
+function normalizeMissingContextItems(raw) {
+    return requireArray(raw).map((item) => {
+        const object = requirePlainObject(item);
+        rejectUnexpectedKeys(object, MISSING_CONTEXT_ITEM_KEYS);
+        const category = requireNonEmptyTrimmedString(object.category);
+        const detail = requireNonEmptyTrimmedString(object.detail);
+        return { category, detail };
+    });
+}
+function normalizeChecklistItems(raw) {
+    return requireArray(raw).map((item) => {
+        const object = requirePlainObject(item);
+        rejectUnexpectedKeys(object, CHECKLIST_ITEM_KEYS);
+        const text = requireNonEmptyTrimmedString(object.text);
+        return { text };
+    });
+}
+function normalizeEvidenceItems(raw) {
+    return requireArray(raw).map((item) => {
+        const object = requirePlainObject(item);
+        rejectUnexpectedKeys(object, EVIDENCE_ITEM_KEYS);
+        const source = requireEnum(object.source, EVIDENCE_SOURCES);
+        const detail = requireNonEmptyTrimmedString(object.detail);
+        return { source, detail };
+    });
+}
+function rejectUnexpectedKeys(report, allowedKeys = PREFLIGHT_REPORT_KEYS) {
+    for (const key of Object.keys(report)) {
+        if (!allowedKeys.has(key)) {
+            throwInvalidReport();
+        }
+    }
+    for (const key of allowedKeys) {
+        if (!Object.prototype.hasOwnProperty.call(report, key)) {
+            throwInvalidReport();
+        }
+    }
+}
+function requirePlainObject(raw) {
+    if (typeof raw !== "object" ||
+        raw === null ||
+        Array.isArray(raw) ||
+        Object.getPrototypeOf(raw) !== Object.prototype) {
+        throwInvalidReport();
+    }
+    return raw;
+}
+function requireArray(raw) {
+    if (!Array.isArray(raw)) {
+        throwInvalidReport();
+    }
+    return raw;
+}
+function requireString(raw) {
+    if (typeof raw !== "string") {
+        throwInvalidReport();
+    }
+    return raw;
+}
+function requireNonEmptyTrimmedString(raw) {
+    const value = requireString(raw).trim();
+    if (value.length === 0) {
+        throwInvalidReport();
+    }
+    return value;
+}
+function requireEnum(raw, values) {
+    if (typeof raw !== "string" || !values.has(raw)) {
+        throwInvalidReport();
+    }
+    return raw;
+}
+function throwInvalidReport() {
+    throw new PreflightReportValidationError();
 }
 
 

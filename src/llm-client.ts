@@ -47,7 +47,14 @@ export interface RawStructuredPreflightReport {
 }
 
 export interface LlmClient {
-  analyzeIssue(input: LlmAnalysisInput): Promise<RawStructuredPreflightReport>
+  analyzeIssue(input: LlmAnalysisInput): Promise<unknown>
+}
+
+export class LlmOutputParseError extends Error {
+  constructor(message = "Invalid structured LLM output") {
+    super(message)
+    this.name = "LlmOutputParseError"
+  }
 }
 
 export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
@@ -184,9 +191,7 @@ export class OpenAiLlmClient implements LlmClient {
     this.model = model
   }
 
-  async analyzeIssue(
-    input: LlmAnalysisInput
-  ): Promise<RawStructuredPreflightReport> {
+  async analyzeIssue(input: LlmAnalysisInput): Promise<unknown> {
     const response = await this.client.responses.create({
       model: this.model,
       input: [
@@ -215,7 +220,15 @@ export class OpenAiLlmClient implements LlmClient {
     } as never)
 
     const outputText = extractOutputText(response)
-    return JSON.parse(outputText) as RawStructuredPreflightReport
+    return parseOutputText(outputText)
+  }
+}
+
+function parseOutputText(outputText: string): unknown {
+  try {
+    return JSON.parse(outputText) as unknown
+  } catch {
+    throw new LlmOutputParseError()
   }
 }
 
@@ -230,5 +243,5 @@ function extractOutputText(response: unknown): string {
     return response.output_text
   }
 
-  throw new Error("OpenAI structured response did not include output_text")
+  throw new LlmOutputParseError()
 }

@@ -2,8 +2,16 @@ import * as core from "@actions/core"
 import { context } from "@actions/github"
 import { loadConfig } from "./config.js"
 import { parseIssueLabeledEvent } from "./github-context.js"
-import { buildLlmAnalysisInput, OpenAiLlmClient } from "./llm-client.js"
+import {
+  buildLlmAnalysisInput,
+  LlmOutputParseError,
+  OpenAiLlmClient
+} from "./llm-client.js"
 import { runPrechecks } from "./prechecks.js"
+import {
+  PreflightReportValidationError,
+  validatePreflightReport
+} from "./report-schema.js"
 
 export async function run(): Promise<void> {
   try {
@@ -48,18 +56,32 @@ export async function run(): Promise<void> {
 
       try {
         const llmClient = new OpenAiLlmClient(config.openaiApiKey)
-        await llmClient.analyzeIssue(llmInput)
-      } catch {
+        const rawReport = await llmClient.analyzeIssue(llmInput)
+        const report = validatePreflightReport(rawReport)
+
+        core.info(
+          `LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`
+        )
+      } catch (error) {
+        if (
+          error instanceof LlmOutputParseError ||
+          error instanceof PreflightReportValidationError
+        ) {
+          core.info(
+            `LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.`
+          )
+          core.setFailed(
+            "LLM structured analysis failed validation: invalid_report"
+          )
+          return
+        }
+
         core.info(
           `LLM structured analysis failed for issue #${llmInput.logMetadata.issueNumber}: provider_error.`
         )
         core.setFailed("LLM structured analysis failed: provider_error")
         return
       }
-
-      core.info(
-        `LLM structured analysis completed for issue #${llmInput.logMetadata.issueNumber}; validation deferred.`
-      )
       return
     }
 

@@ -1,5 +1,6 @@
 import {
   buildLlmAnalysisInput,
+  LlmOutputParseError,
   MAX_ISSUE_BODY_CHARS,
   OpenAiLlmClient,
   PREFLIGHT_REPORT_RESPONSE_FORMAT
@@ -189,7 +190,7 @@ describe("OpenAiLlmClient", () => {
     })
   })
 
-  it("requests strict structured output and returns the raw structured report payload", async () => {
+  it("requests strict structured output and returns the raw parsed provider payload", async () => {
     const input = buildLlmAnalysisInput(readyIssue())
     const client = new OpenAiLlmClient("openai-secret-key")
 
@@ -266,12 +267,58 @@ describe("OpenAiLlmClient", () => {
     expect(serializedSchema).not.toContain("markdown")
   })
 
-  it("throws a safe provider error without exposing raw provider output", async () => {
+  it("throws a safe parse error when output_text is missing", async () => {
     mockResponsesCreate.mockResolvedValue({ output_text: "" })
     const client = new OpenAiLlmClient("openai-secret-key")
 
     await expect(
       client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
-    ).rejects.toThrow("OpenAI structured response did not include output_text")
+    ).rejects.toThrow(LlmOutputParseError)
+    await expect(
+      client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+    ).rejects.toThrow("Invalid structured LLM output")
   })
+
+  it("throws a safe parse error for malformed output_text without exposing raw output", async () => {
+    const privateRawOutput = '{"risk_explanation":"private issue detail"'
+    mockResponsesCreate.mockResolvedValue({ output_text: privateRawOutput })
+    const client = new OpenAiLlmClient("openai-secret-key")
+
+    await expect(
+      client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+    ).rejects.toThrow("Invalid structured LLM output")
+
+    try {
+      await client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+    } catch (error) {
+      expect(error).toBeInstanceOf(LlmOutputParseError)
+      expect(String(error)).not.toContain(privateRawOutput)
+      expect(String(error)).not.toContain("private issue detail")
+    }
+  })
+
+  it.each([
+    ["incomplete report JSON", { status: "ready" }],
+    [
+      "unexpected mutation fields",
+      {
+        ...structuredReport,
+        labels: ["ready"],
+        issue_state: "closed"
+      }
+    ],
+    ["invalid enum values", { ...structuredReport, status: "blocked" }]
+  ])(
+    "returns %s only as raw parsed output for validation handoff",
+    async (_name, raw) => {
+      mockResponsesCreate.mockResolvedValue({
+        output_text: JSON.stringify(raw)
+      })
+      const client = new OpenAiLlmClient("openai-secret-key")
+
+      await expect(
+        client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+      ).resolves.toEqual(raw)
+    }
+  )
 })

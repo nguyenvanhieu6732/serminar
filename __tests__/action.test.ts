@@ -95,7 +95,7 @@ describe("run", () => {
       "LLM structured analysis requested for issue #42."
     )
     expect(mockedCore.info).toHaveBeenCalledWith(
-      "LLM structured analysis completed for issue #42; validation deferred."
+      "LLM structured analysis validated for issue #42: needs_clarification."
     )
     expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
     expect(mockedCore.info).not.toHaveBeenCalledWith(
@@ -149,7 +149,7 @@ describe("run", () => {
     )
     expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
     expect(mockedCore.info).toHaveBeenCalledWith(
-      "LLM structured analysis completed for issue #43; validation deferred."
+      "LLM structured analysis validated for issue #43: needs_clarification."
     )
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
@@ -353,4 +353,77 @@ describe("run", () => {
       expect.stringContaining("provider secret detail")
     )
   })
+
+  it.each([
+    ["malformed JSON", '{"risk_explanation":"private raw model output"'],
+    [
+      "incomplete report",
+      JSON.stringify({
+        status: "ready",
+        risk_explanation: "private incomplete model output"
+      })
+    ],
+    [
+      "unexpected mutation fields",
+      JSON.stringify({
+        ...structuredReport,
+        labels: ["ready-for-dev"],
+        comment_body: "private rendered comment"
+      })
+    ],
+    [
+      "invalid enum values",
+      JSON.stringify({
+        ...structuredReport,
+        status: "blocked"
+      })
+    ]
+  ])(
+    "fails safely when LLM output is invalid: %s",
+    async (_caseName, outputText) => {
+      const githubToken = "gh-secret-token"
+      const openaiApiKey = "openai-secret-key"
+      mockResponsesCreate.mockResolvedValue({ output_text: outputText })
+      mockInputs({
+        "github-token": githubToken,
+        "openai-api-key": openaiApiKey
+      })
+
+      await run()
+
+      expect(mockedCore.info).toHaveBeenCalledWith(
+        "LLM structured analysis requested for issue #42."
+      )
+      expect(mockedCore.info).toHaveBeenCalledWith(
+        "LLM structured analysis failed validation for issue #42: invalid_report."
+      )
+      expect(mockedCore.setFailed).toHaveBeenCalledWith(
+        "LLM structured analysis failed validation: invalid_report"
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining(issueLabeledPayload.issue.title)
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining(issueLabeledPayload.issue.body)
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining(githubToken)
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining(openaiApiKey)
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining("private raw model output")
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining("private incomplete model output")
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining("private rendered comment")
+      )
+      expect(mockedCore.info).not.toHaveBeenCalledWith(
+        expect.stringContaining("blocked")
+      )
+    }
+  )
 })
