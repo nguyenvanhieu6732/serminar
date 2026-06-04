@@ -19,6 +19,14 @@ export function renderReport(report: PreflightReport): string {
     sections.push(`### Suggested Questions\n${suggestedQuestions}`)
   }
 
+  const draftAcceptanceCriteria = renderDraftAcceptanceCriteria(report)
+
+  if (draftAcceptanceCriteria !== "") {
+    sections.push(
+      `### Draft Acceptance Criteria\nEditable suggestions:\n${draftAcceptanceCriteria}`
+    )
+  }
+
   return sections.join("\n\n")
 }
 
@@ -56,6 +64,14 @@ function renderSuggestedQuestions(report: PreflightReport): string {
     .slice(0, remainingQuestionSlots)
     .map(renderChecklistItem)
     .join("\n")
+}
+
+function renderDraftAcceptanceCriteria(report: PreflightReport): string {
+  if (report.status !== "ready" || report.missing_context.length > 0) {
+    return ""
+  }
+
+  return report.draft_acceptance_criteria.map(renderChecklistItem).join("\n")
 }
 
 function renderChecklistItem({ text }: ChecklistItem): string {

@@ -71,7 +71,7 @@ describe("renderReport", () => {
     expect(markdown.match(/^- \[ \] /gm)).toHaveLength(3)
   })
 
-  it("renders an explicit empty state without inventing checklist items", () => {
+  it("renders an explicit empty missing-context state without inventing missing-context items", () => {
     const markdown = renderReport({
       ...baseReport,
       status: "ready",
@@ -85,7 +85,10 @@ describe("renderReport", () => {
         "### Why This Matters\n" +
         "The work artifact lacks enough detail for a reliable implementation.\n\n" +
         "### Suggested Questions\n" +
-        "- [ ] What observable behavior proves completion?"
+        "- [ ] What observable behavior proves completion?\n\n" +
+        "### Draft Acceptance Criteria\n" +
+        "Editable suggestions:\n" +
+        "- [ ] Suggested: The expected behavior is visible."
     )
   })
 
@@ -193,6 +196,91 @@ describe("renderReport", () => {
     expect(markdown).toContain("Missing context 10.")
     expect(markdown).not.toContain("### Suggested Questions")
     expect(markdown).not.toContain(baseReport.suggested_questions[0].text)
+  })
+
+  it("renders safe draft acceptance criteria as editable suggestions", () => {
+    const markdown = renderReport({
+      ...baseReport,
+      status: "ready",
+      missing_context: [],
+      draft_acceptance_criteria: [
+        { text: "The export completes with the selected date range." },
+        {
+          text: "The result is testable.\n### Injected Section\n- [ ] Injected task\n<div>Injected HTML</div>"
+        }
+      ]
+    })
+
+    expect(markdown).toBe(
+      "## Dev Ticket Preflight: Ready\n\n" +
+        "### Missing Context\n" +
+        "No material missing context was found.\n\n" +
+        "### Why This Matters\n" +
+        "The work artifact lacks enough detail for a reliable implementation.\n\n" +
+        "### Suggested Questions\n" +
+        "- [ ] What observable behavior proves completion?\n\n" +
+        "### Draft Acceptance Criteria\n" +
+        "Editable suggestions:\n" +
+        "- [ ] The export completes with the selected date range.\n" +
+        "- [ ] The result is testable. \\#\\#\\# Injected Section \\- \\[ \\] Injected task &lt;div&gt;Injected HTML&lt;/div&gt;"
+    )
+    expect(markdown.match(/Editable suggestions:/g)).toHaveLength(1)
+    expect(markdown.match(/The export completes/g)).toHaveLength(1)
+    expect(markdown.match(/The result is testable/g)).toHaveLength(1)
+    expect(markdown).not.toContain("\n### Injected Section")
+    expect(markdown).not.toContain("\n- [ ] Injected task")
+    expect(markdown).not.toContain("<div>")
+  })
+
+  it.each(["needs_clarification", "high_risk"] as const)(
+    "omits draft acceptance criteria for %s reports",
+    (status) => {
+      const markdown = renderReport({ ...baseReport, status })
+
+      expect(markdown).toContain("### Suggested Questions")
+      expect(markdown).not.toContain("### Draft Acceptance Criteria")
+      expect(markdown).not.toContain(
+        baseReport.draft_acceptance_criteria[0].text
+      )
+    }
+  )
+
+  it("omits draft acceptance criteria when context is missing even if status is ready", () => {
+    const markdown = renderReport({ ...baseReport, status: "ready" })
+
+    expect(markdown).toContain("### Missing Context")
+    expect(markdown).toContain("### Suggested Questions")
+    expect(markdown).not.toContain("### Draft Acceptance Criteria")
+    expect(markdown).not.toContain(baseReport.draft_acceptance_criteria[0].text)
+  })
+
+  it("omits draft acceptance criteria when none are available", () => {
+    const markdown = renderReport({
+      ...baseReport,
+      status: "ready",
+      missing_context: [],
+      draft_acceptance_criteria: []
+    })
+
+    expect(markdown).not.toContain("### Draft Acceptance Criteria")
+    expect(markdown).not.toContain("Editable suggestions:")
+  })
+
+  it("renders draft acceptance criteria after Why This Matters when questions are absent", () => {
+    const markdown = renderReport({
+      ...baseReport,
+      status: "ready",
+      missing_context: [],
+      suggested_questions: []
+    })
+
+    expect(markdown).toContain(
+      "### Why This Matters\n" +
+        "The work artifact lacks enough detail for a reliable implementation.\n\n" +
+        "### Draft Acceptance Criteria\n" +
+        "Editable suggestions:"
+    )
+    expect(markdown).not.toContain("### Suggested Questions")
   })
 
   it("does not invent filler or render sections owned by later stories", () => {
