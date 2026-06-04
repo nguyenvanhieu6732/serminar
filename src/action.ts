@@ -9,6 +9,7 @@ import {
 } from "./llm-client.js"
 import { runPrechecks } from "./prechecks.js"
 import {
+  applyConservativeStatusPolicy,
   PreflightReportValidationError,
   validatePreflightReport
 } from "./report-schema.js"
@@ -57,7 +58,8 @@ export async function run(): Promise<void> {
       try {
         const llmClient = new OpenAiLlmClient(config.openaiApiKey)
         const rawReport = await llmClient.analyzeIssue(llmInput)
-        const report = validatePreflightReport(rawReport)
+        const validatedReport = validatePreflightReport(rawReport)
+        const report = applyConservativeStatusPolicy(validatedReport)
 
         core.info(
           `LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`

@@ -35419,7 +35419,8 @@ async function run() {
             try {
                 const llmClient = new llm_client_js_1.OpenAiLlmClient(config.openaiApiKey);
                 const rawReport = await llmClient.analyzeIssue(llmInput);
-                const report = (0, report_schema_js_1.validatePreflightReport)(rawReport);
+                const validatedReport = (0, report_schema_js_1.validatePreflightReport)(rawReport);
+                const report = (0, report_schema_js_1.applyConservativeStatusPolicy)(validatedReport);
                 core.info(`LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`);
             }
             catch (error) {
@@ -35883,6 +35884,7 @@ function createInsufficientContextReport(reason) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PreflightReportValidationError = void 0;
 exports.validatePreflightReport = validatePreflightReport;
+exports.applyConservativeStatusPolicy = applyConservativeStatusPolicy;
 const PREFLIGHT_REPORT_KEYS = new Set([
     "status",
     "missing_context",
@@ -35929,6 +35931,22 @@ function validatePreflightReport(raw) {
         confidence: requireEnum(report.confidence, CONFIDENCE_VALUES),
         evidence: normalizeEvidenceItems(report.evidence)
     };
+}
+function applyConservativeStatusPolicy(report) {
+    const status = determineConservativeStatus(report);
+    if (status === report.status) {
+        return report;
+    }
+    return { ...report, status };
+}
+function determineConservativeStatus(report) {
+    if (report.missing_context.length === 0) {
+        return "ready";
+    }
+    if (report.confidence === "low" || report.status === "high_risk") {
+        return "high_risk";
+    }
+    return "needs_clarification";
 }
 function normalizeMissingContextItems(raw) {
     return requireArray(raw).map((item) => {

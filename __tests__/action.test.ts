@@ -154,6 +154,50 @@ describe("run", () => {
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
 
+  it("logs the conservative status when validated LLM output is ready but still has missing context", async () => {
+    mockResponsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        ...structuredReport,
+        status: "ready"
+      })
+    })
+    mockInputs({
+      "github-token": "gh-secret-token",
+      "openai-api-key": "openai-secret-key"
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis validated for issue #42: needs_clarification."
+    )
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      "LLM structured analysis validated for issue #42: ready."
+    )
+    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+  })
+
+  it("logs ready when validated LLM output has no missing context", async () => {
+    mockResponsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        ...structuredReport,
+        status: "needs_clarification",
+        missing_context: []
+      })
+    })
+    mockInputs({
+      "github-token": "gh-secret-token",
+      "openai-api-key": "openai-secret-key"
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "LLM structured analysis validated for issue #42: ready."
+    )
+    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+  })
+
   it("logs long-body truncation metadata without logging title, body, or truncated content", async () => {
     const githubToken = "gh-secret-token"
     const openaiApiKey = "openai-secret-key"

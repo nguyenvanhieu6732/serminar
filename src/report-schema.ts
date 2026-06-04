@@ -86,6 +86,30 @@ export function validatePreflightReport(raw: unknown): PreflightReport {
   }
 }
 
+export function applyConservativeStatusPolicy(
+  report: PreflightReport
+): PreflightReport {
+  const status = determineConservativeStatus(report)
+
+  if (status === report.status) {
+    return report
+  }
+
+  return { ...report, status }
+}
+
+function determineConservativeStatus(report: PreflightReport): PreflightStatus {
+  if (report.missing_context.length === 0) {
+    return "ready"
+  }
+
+  if (report.confidence === "low" || report.status === "high_risk") {
+    return "high_risk"
+  }
+
+  return "needs_clarification"
+}
+
 function normalizeMissingContextItems(raw: unknown): MissingContextItem[] {
   return requireArray(raw).map((item) => {
     const object = requirePlainObject(item)

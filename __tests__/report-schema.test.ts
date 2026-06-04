@@ -1,4 +1,5 @@
 import {
+  applyConservativeStatusPolicy,
   PreflightReportValidationError,
   validatePreflightReport
 } from "../src/report-schema.js"
@@ -159,5 +160,112 @@ describe("validatePreflightReport", () => {
       expect(error).toBeInstanceOf(PreflightReportValidationError)
       expect(String(error)).not.toContain(privateValue)
     }
+  })
+})
+
+describe("applyConservativeStatusPolicy", () => {
+  it.each([
+    [
+      "ready with missing context downgrades to needs_clarification",
+      {
+        status: "ready",
+        missing_context: [
+          {
+            category: "acceptance_criteria",
+            detail: "Missing testable pass/fail criteria."
+          }
+        ],
+        confidence: "medium"
+      },
+      "needs_clarification"
+    ],
+    [
+      "ready with low confidence and missing context escalates to high_risk",
+      {
+        status: "ready",
+        missing_context: [
+          {
+            category: "expected_behavior",
+            detail: "The expected behavior is unclear."
+          }
+        ],
+        confidence: "low"
+      },
+      "high_risk"
+    ],
+    [
+      "high risk with missing context stays high_risk",
+      {
+        status: "high_risk",
+        missing_context: [
+          {
+            category: "scope",
+            detail: "The implementation scope is too vague."
+          }
+        ],
+        confidence: "medium"
+      },
+      "high_risk"
+    ],
+    [
+      "needs clarification with missing context stays needs_clarification",
+      {
+        status: "needs_clarification",
+        missing_context: [
+          {
+            category: "edge_cases",
+            detail: "Important edge cases are not specified."
+          }
+        ],
+        confidence: "high"
+      },
+      "needs_clarification"
+    ],
+    [
+      "missing context always prevents ready even with high confidence",
+      {
+        status: "ready",
+        missing_context: [
+          {
+            category: "permissions",
+            detail: "Permission behavior is not described."
+          }
+        ],
+        confidence: "high"
+      },
+      "needs_clarification"
+    ],
+    [
+      "no missing context normalizes to ready",
+      {
+        status: "high_risk",
+        missing_context: [],
+        confidence: "low"
+      },
+      "ready"
+    ]
+  ])("%s", (_caseName, override, expectedStatus) => {
+    const report = validatePreflightReport({
+      ...validReport,
+      ...override
+    })
+
+    expect(applyConservativeStatusPolicy(report).status).toBe(expectedStatus)
+  })
+
+  it("does not introduce blame or people-scoring language", () => {
+    const report = applyConservativeStatusPolicy(
+      validatePreflightReport({
+        ...validReport,
+        status: "ready"
+      })
+    )
+
+    const serialized = JSON.stringify(report).toLowerCase()
+    expect(serialized).not.toContain("owner failed")
+    expect(serialized).not.toContain("author")
+    expect(serialized).not.toContain("score")
+    expect(serialized).not.toContain("rating")
+    expect(serialized).not.toContain("blame")
   })
 })

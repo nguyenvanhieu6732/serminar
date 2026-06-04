@@ -5,3 +5,7 @@
 ## Deferred from: code review of 2-4-validate-and-normalize-preflight-report-schema (2026-06-04)
 
 - Define output size limits for provider reports. Reason: deferred to the rendering/comment story where Markdown and GitHub comment limits are defined; Story 2.4 validates schema shape but does not render or post comments.
+
+## Deferred from: code review of 2-5-assign-conservative-preflight-status (2026-06-04)
+
+- Enforce non-blaming report language before rendering. Reason: deferred to Story 3.5, where rendered report language and no-people-analytics guardrails are owned. Schema validation should remain focused on structural trust boundaries rather than brittle natural-language keyword filtering or sanitization.
