@@ -1,6 +1,7 @@
 import * as core from "@actions/core"
 import { context } from "@actions/github"
 import { loadConfig } from "./config.js"
+import { createIssueComment } from "./github-comments.js"
 import { parseIssueLabeledEvent } from "./github-context.js"
 import {
   buildLlmAnalysisInput,
@@ -10,9 +11,11 @@ import {
 import { runPrechecks } from "./prechecks.js"
 import {
   applyConservativeStatusPolicy,
+  type PreflightReport,
   PreflightReportValidationError,
   validatePreflightReport
 } from "./report-schema.js"
+import { renderReport } from "./report-renderer.js"
 
 export async function run(): Promise<void> {
   try {
@@ -38,6 +41,11 @@ export async function run(): Promise<void> {
         core.info(
           `Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: ${precheckResult.reason} -> ${precheckResult.report.status}. LLM analysis skipped.`
         )
+        await postReport(
+          config.githubToken,
+          parseResult.issue,
+          precheckResult.report
+        )
         return
       }
 
@@ -55,11 +63,13 @@ export async function run(): Promise<void> {
         `LLM structured analysis requested for issue #${llmInput.logMetadata.issueNumber}.`
       )
 
+      let report: PreflightReport
+
       try {
         const llmClient = new OpenAiLlmClient(config.openaiApiKey)
         const rawReport = await llmClient.analyzeIssue(llmInput)
         const validatedReport = validatePreflightReport(rawReport)
-        const report = applyConservativeStatusPolicy(validatedReport)
+        report = applyConservativeStatusPolicy(validatedReport)
 
         core.info(
           `LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`
@@ -84,6 +94,8 @@ export async function run(): Promise<void> {
         core.setFailed("LLM structured analysis failed: provider_error")
         return
       }
+
+      await postReport(config.githubToken, parseResult.issue, report)
       return
     }
 
@@ -107,5 +119,38 @@ export async function run(): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     core.setFailed(`Setup error: ${message}`)
+  }
+}
+
+async function postReport(
+  githubToken: string,
+  issue: {
+    readonly owner: string
+    readonly repo: string
+    readonly issueNumber: number
+  },
+  report: PreflightReport
+): Promise<void> {
+  const body = renderReport(report)
+
+  try {
+    const commentId = await createIssueComment({
+      token: githubToken,
+      target: {
+        owner: issue.owner,
+        repo: issue.repo,
+        issueNumber: issue.issueNumber
+      },
+      body
+    })
+
+    core.info(
+      `Preflight comment created for issue #${issue.issueNumber}: comment_id=${commentId}.`
+    )
+  } catch {
+    core.info(
+      `GitHub comment creation failed for issue #${issue.issueNumber}: api_error.`
+    )
+    core.setFailed("GitHub comment creation failed: api_error")
   }
 }

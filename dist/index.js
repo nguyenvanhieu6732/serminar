@@ -35392,10 +35392,12 @@ exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
 const github_1 = __nccwpck_require__(3228);
 const config_js_1 = __nccwpck_require__(2973);
+const github_comments_js_1 = __nccwpck_require__(5239);
 const github_context_js_1 = __nccwpck_require__(8886);
 const llm_client_js_1 = __nccwpck_require__(6310);
 const prechecks_js_1 = __nccwpck_require__(6147);
 const report_schema_js_1 = __nccwpck_require__(9265);
+const report_renderer_js_1 = __nccwpck_require__(3953);
 async function run() {
     try {
         const config = (0, config_js_1.loadConfig)();
@@ -35410,17 +35412,19 @@ async function run() {
             const precheckResult = (0, prechecks_js_1.runPrechecks)(parseResult.issue);
             if (precheckResult.kind === "report") {
                 core.info(`Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: ${precheckResult.reason} -> ${precheckResult.report.status}. LLM analysis skipped.`);
+                await postReport(config.githubToken, parseResult.issue, precheckResult.report);
                 return;
             }
             core.info(`Deterministic prechecks completed for issue #${parseResult.issue.issueNumber}: enough_context. Preparing bounded LLM input.`);
             const llmInput = (0, llm_client_js_1.buildLlmAnalysisInput)(parseResult.issue);
             core.info(`Bounded LLM input prepared for issue #${llmInput.logMetadata.issueNumber}: body_truncated=${llmInput.logMetadata.truncated}, included_body_chars=${llmInput.logMetadata.includedBodyLength}.`);
             core.info(`LLM structured analysis requested for issue #${llmInput.logMetadata.issueNumber}.`);
+            let report;
             try {
                 const llmClient = new llm_client_js_1.OpenAiLlmClient(config.openaiApiKey);
                 const rawReport = await llmClient.analyzeIssue(llmInput);
                 const validatedReport = (0, report_schema_js_1.validatePreflightReport)(rawReport);
-                const report = (0, report_schema_js_1.applyConservativeStatusPolicy)(validatedReport);
+                report = (0, report_schema_js_1.applyConservativeStatusPolicy)(validatedReport);
                 core.info(`LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`);
             }
             catch (error) {
@@ -35434,6 +35438,7 @@ async function run() {
                 core.setFailed("LLM structured analysis failed: provider_error");
                 return;
             }
+            await postReport(config.githubToken, parseResult.issue, report);
             return;
         }
         if (parseResult.reason === "label_mismatch") {
@@ -35449,6 +35454,25 @@ async function run() {
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         core.setFailed(`Setup error: ${message}`);
+    }
+}
+async function postReport(githubToken, issue, report) {
+    const body = (0, report_renderer_js_1.renderReport)(report);
+    try {
+        const commentId = await (0, github_comments_js_1.createIssueComment)({
+            token: githubToken,
+            target: {
+                owner: issue.owner,
+                repo: issue.repo,
+                issueNumber: issue.issueNumber
+            },
+            body
+        });
+        core.info(`Preflight comment created for issue #${issue.issueNumber}: comment_id=${commentId}.`);
+    }
+    catch {
+        core.info(`GitHub comment creation failed for issue #${issue.issueNumber}: api_error.`);
+        core.setFailed("GitHub comment creation failed: api_error");
     }
 }
 
@@ -35517,6 +35541,28 @@ function loadConfig() {
         openaiApiKey,
         readyLabel: readyLabelInput.length > 0 ? readyLabelInput : exports.DEFAULT_READY_LABEL
     };
+}
+
+
+/***/ }),
+
+/***/ 5239:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createIssueComment = createIssueComment;
+const github_1 = __nccwpck_require__(3228);
+async function createIssueComment({ token, target, body }) {
+    const octokit = (0, github_1.getOctokit)(token);
+    const response = await octokit.rest.issues.createComment({
+        owner: target.owner,
+        repo: target.repo,
+        issue_number: target.issueNumber,
+        body
+    });
+    return response.data.id;
 }
 
 
@@ -35871,6 +35917,84 @@ function createInsufficientContextReport(reason) {
             }
         ]
     };
+}
+
+
+/***/ }),
+
+/***/ 3953:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.renderReport = renderReport;
+const TARGET_MAX_CHECKLIST_LINES = 10;
+function renderReport(report) {
+    const sections = [
+        `## Dev Ticket Preflight: ${renderStatus(report.status)}`,
+        `### Missing Context\n${renderMissingContext(report.missing_context)}`,
+        `### Why This Matters\n${escapeInlineText(report.risk_explanation)}`
+    ];
+    const suggestedQuestions = renderSuggestedQuestions(report);
+    if (suggestedQuestions !== "") {
+        sections.push(`### Suggested Questions\n${suggestedQuestions}`);
+    }
+    const draftAcceptanceCriteria = renderDraftAcceptanceCriteria(report);
+    if (draftAcceptanceCriteria !== "") {
+        sections.push(`### Draft Acceptance Criteria\nEditable suggestions:\n${draftAcceptanceCriteria}`);
+    }
+    return sections.join("\n\n");
+}
+function renderStatus(status) {
+    switch (status) {
+        case "ready":
+            return "Ready";
+        case "needs_clarification":
+            return "Needs Clarification";
+        case "high_risk":
+            return "High Risk";
+    }
+}
+function renderMissingContext(items) {
+    if (items.length === 0) {
+        return "No material missing context was found.";
+    }
+    return items
+        .map(({ category, detail }) => `- [ ] **${renderCategory(category)}:** ${escapeInlineText(detail)}`)
+        .join("\n");
+}
+function renderSuggestedQuestions(report) {
+    const remainingQuestionSlots = Math.max(0, TARGET_MAX_CHECKLIST_LINES - report.missing_context.length);
+    return report.suggested_questions
+        .slice(0, remainingQuestionSlots)
+        .map(renderChecklistItem)
+        .join("\n");
+}
+function renderDraftAcceptanceCriteria(report) {
+    if (report.status !== "ready" || report.missing_context.length > 0) {
+        return "";
+    }
+    return report.draft_acceptance_criteria.map(renderChecklistItem).join("\n");
+}
+function renderChecklistItem({ text }) {
+    return `- [ ] ${escapeInlineText(text)}`;
+}
+function renderCategory(category) {
+    const label = category.replace(/_/g, " ");
+    return capitalizeFirst(escapeInlineText(label));
+}
+function capitalizeFirst(value) {
+    return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);
+}
+function escapeInlineText(value) {
+    return value
+        .replace(/\s+/g, " ")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/([\\`*_[\]{}#+|-])/g, "\\$1")
+        .replace(/^(\d+)([.)])(?=\s)/, "$1\\$2");
 }
 
 

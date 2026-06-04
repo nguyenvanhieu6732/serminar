@@ -3,6 +3,8 @@ import { context } from "@actions/github"
 import { run } from "../src/action.js"
 import { DEFAULT_READY_LABEL } from "../src/config.js"
 import { MAX_ISSUE_BODY_CHARS } from "../src/llm-client.js"
+import { renderReport } from "../src/report-renderer.js"
+import type { PreflightReport } from "../src/report-schema.js"
 import emptyIssuePayload from "./fixtures/empty-issue.json"
 import issueLabeledPayload from "./fixtures/issue-labeled.json"
 import issueOtherLabelPayload from "./fixtures/issue-other-label.json"
@@ -10,6 +12,11 @@ import longIssuePayload from "./fixtures/long-issue.json"
 import promptInjectionPayload from "./fixtures/prompt-injection-issue.json"
 import pullRequestLabeledPayload from "./fixtures/pull-request-labeled.json"
 import shortIssuePayload from "./fixtures/short-issue.json"
+import {
+  mockCreateComment,
+  mockDeleteComment,
+  mockUpdateComment
+} from "./mocks/actions-github.js"
 
 jest.mock("@actions/core")
 
@@ -30,7 +37,7 @@ const githubContext = context as typeof context & {
   payload: unknown
 }
 
-const structuredReport = {
+const structuredReport: PreflightReport = {
   status: "needs_clarification",
   missing_context: [
     {
@@ -63,6 +70,7 @@ describe("run", () => {
     mockResponsesCreate.mockResolvedValue({
       output_text: JSON.stringify(structuredReport)
     })
+    mockCreateComment.mockResolvedValue({ data: { id: 123 } })
     githubContext.eventName = "issues"
     githubContext.payload = issueLabeledPayload
   })
@@ -97,6 +105,15 @@ describe("run", () => {
     expect(mockedCore.info).toHaveBeenCalledWith(
       "LLM structured analysis validated for issue #42: needs_clarification."
     )
+    expect(mockCreateComment).toHaveBeenCalledWith({
+      owner: "demo-owner",
+      repo: "demo-repo",
+      issue_number: 42,
+      body: renderReport(structuredReport)
+    })
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Preflight comment created for issue #42: comment_id=123."
+    )
     expect(mockResponsesCreate).toHaveBeenCalledTimes(1)
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(githubToken)
@@ -128,6 +145,7 @@ describe("run", () => {
     expect(mockedCore.info).toHaveBeenCalledWith(
       'Skipping issue #43: label "triage" does not match ready label "ready-for-dev".'
     )
+    expect(mockCreateComment).not.toHaveBeenCalled()
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
 
@@ -174,6 +192,11 @@ describe("run", () => {
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       "LLM structured analysis validated for issue #42: ready."
     )
+    expect(mockCreateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: renderReport(structuredReport)
+      })
+    )
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
 
@@ -194,6 +217,15 @@ describe("run", () => {
 
     expect(mockedCore.info).toHaveBeenCalledWith(
       "LLM structured analysis validated for issue #42: ready."
+    )
+    expect(mockCreateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: renderReport({
+          ...structuredReport,
+          status: "ready",
+          missing_context: []
+        })
+      })
     )
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
@@ -276,6 +308,7 @@ describe("run", () => {
       "Skipping issue #44: pull requests are not supported by the MVP."
     )
     expect(mockResponsesCreate).not.toHaveBeenCalled()
+    expect(mockCreateComment).not.toHaveBeenCalled()
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(pullRequestLabeledPayload.issue.body)
     )
@@ -285,6 +318,24 @@ describe("run", () => {
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(openaiApiKey)
     )
+    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+  })
+
+  it("skips unsupported event payloads without posting comments", async () => {
+    githubContext.eventName = "push"
+    githubContext.payload = {}
+    mockInputs({
+      "github-token": "gh-secret-token",
+      "openai-api-key": "openai-secret-key"
+    })
+
+    await run()
+
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Skipping run: unsupported event payload for issue label preflight."
+    )
+    expect(mockResponsesCreate).not.toHaveBeenCalled()
+    expect(mockCreateComment).not.toHaveBeenCalled()
     expect(mockedCore.setFailed).not.toHaveBeenCalled()
   })
 
@@ -303,6 +354,16 @@ describe("run", () => {
       "Deterministic prechecks completed for issue #45: empty_body -> high_risk. LLM analysis skipped."
     )
     expect(mockResponsesCreate).not.toHaveBeenCalled()
+    expect(mockCreateComment).toHaveBeenCalledTimes(1)
+    expect(mockCreateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        issue_number: 45,
+        body: expect.stringContaining("## Dev Ticket Preflight: High Risk")
+      })
+    )
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Preflight comment created for issue #45: comment_id=123."
+    )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining("Bounded LLM input prepared")
     )
@@ -333,6 +394,10 @@ describe("run", () => {
       "Deterministic prechecks completed for issue #46: short_body -> high_risk. LLM analysis skipped."
     )
     expect(mockResponsesCreate).not.toHaveBeenCalled()
+    expect(mockCreateComment).toHaveBeenCalledTimes(1)
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "Preflight comment created for issue #46: comment_id=123."
+    )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining("Bounded LLM input prepared")
     )
@@ -381,6 +446,7 @@ describe("run", () => {
     expect(mockedCore.setFailed).toHaveBeenCalledWith(
       "LLM structured analysis failed: provider_error"
     )
+    expect(mockCreateComment).not.toHaveBeenCalled()
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(issueLabeledPayload.issue.title)
     )
@@ -444,6 +510,7 @@ describe("run", () => {
       expect(mockedCore.setFailed).toHaveBeenCalledWith(
         "LLM structured analysis failed validation: invalid_report"
       )
+      expect(mockCreateComment).not.toHaveBeenCalled()
       expect(mockedCore.info).not.toHaveBeenCalledWith(
         expect.stringContaining(issueLabeledPayload.issue.title)
       )
@@ -470,4 +537,27 @@ describe("run", () => {
       )
     }
   )
+
+  it("fails safely when GitHub comment creation fails without retrying", async () => {
+    mockCreateComment.mockRejectedValue(new Error("private API detail"))
+    mockInputs({
+      "github-token": "gh-secret-token",
+      "openai-api-key": "openai-secret-key"
+    })
+
+    await run()
+
+    expect(mockCreateComment).toHaveBeenCalledTimes(1)
+    expect(mockedCore.info).toHaveBeenCalledWith(
+      "GitHub comment creation failed for issue #42: api_error."
+    )
+    expect(mockedCore.setFailed).toHaveBeenCalledWith(
+      "GitHub comment creation failed: api_error"
+    )
+    expect(mockUpdateComment).not.toHaveBeenCalled()
+    expect(mockDeleteComment).not.toHaveBeenCalled()
+    expect(mockedCore.info).not.toHaveBeenCalledWith(
+      expect.stringContaining("private API detail")
+    )
+  })
 })
