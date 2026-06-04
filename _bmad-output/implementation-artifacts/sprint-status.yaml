@@ -58,8 +58,8 @@ development_status:
   2-5-assign-conservative-preflight-status: done
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-render-canonical-markdown-preflight-report: backlog
+  epic-3: in-progress
+  3-1-render-canonical-markdown-preflight-report: done
   3-2-render-suggested-questions-and-checklist-items: backlog
   3-3-render-draft-acceptance-criteria-only-when-safe: backlog
   3-4-post-report-as-append-only-github-issue-comment: backlog
