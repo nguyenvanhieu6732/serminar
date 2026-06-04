@@ -4,7 +4,7 @@ baseline_commit: 30ac58b
 
 # Story 3.2: Render Suggested Questions and Checklist Items
 
-Status: ready-for-dev
+Status: review
 
 Story Key: `3-2-render-suggested-questions-and-checklist-items`
 
@@ -22,41 +22,41 @@ So that I can update the Issue without needing a separate PM process.
 
 ## Tasks / Subtasks
 
-- [ ] Extend the canonical Markdown renderer in `src/report-renderer.ts`. (AC: 1, 2)
-  - [ ] Render `### Why This Matters` after `Missing Context`.
-  - [ ] Render the validated `risk_explanation` as escaped Markdown-safe text without adding explanatory prose.
-  - [ ] Render `### Suggested Questions` after `Why This Matters` when at least one question remains after budgeting.
-  - [ ] Render each suggested question as `- [ ] {question}` in provider order.
+- [x] Extend the canonical Markdown renderer in `src/report-renderer.ts`. (AC: 1, 2)
+  - [x] Render `### Why This Matters` after `Missing Context`.
+  - [x] Render the validated `risk_explanation` as escaped Markdown-safe text without adding explanatory prose.
+  - [x] Render `### Suggested Questions` after `Why This Matters` when at least one question remains after budgeting.
+  - [x] Render each suggested question as `- [ ] {question}` in provider order.
 
-- [ ] Apply a deterministic checklist-line budget. (AC: 1, 3)
-  - [ ] Treat `missing_context` task-list items and rendered `suggested_questions` task-list items as the combined checklist/suggestion line count.
-  - [ ] Preserve every validated missing-context item; do not silently drop implementation-critical context.
-  - [ ] Define a named maximum target of 10 checklist/suggestion lines.
-  - [ ] Use remaining capacity for suggested questions in provider order: `max(0, 10 - missing_context.length)`.
-  - [ ] If missing context already reaches or exceeds 10 items, render all missing context and omit suggested questions; this is the unusually-complex exception.
-  - [ ] Omit the `Suggested Questions` section when no questions remain after budgeting.
+- [x] Apply a deterministic checklist-line budget. (AC: 1, 3)
+  - [x] Treat `missing_context` task-list items and rendered `suggested_questions` task-list items as the combined checklist/suggestion line count.
+  - [x] Preserve every validated missing-context item; do not silently drop implementation-critical context.
+  - [x] Define a named maximum target of 10 checklist/suggestion lines.
+  - [x] Use remaining capacity for suggested questions in provider order: `max(0, 10 - missing_context.length)`.
+  - [x] If missing context already reaches or exceeds 10 items, render all missing context and omit suggested questions; this is the unusually-complex exception.
+  - [x] Omit the `Suggested Questions` section when no questions remain after budgeting.
 
-- [ ] Preserve renderer safety and story boundaries. (AC: 1, 2, 3)
-  - [ ] Reuse the existing inline escaping behavior for risk explanation and suggested questions.
-  - [ ] Keep `renderReport(report: PreflightReport): string` pure and dependent only on the validated report.
-  - [ ] Do not render raw prompt text, raw LLM JSON, or generic educational prose.
-  - [ ] Do not add `Draft Acceptance Criteria`; Story 3.3 owns that section.
-  - [ ] Do not add GitHub API writes, comment posting, action orchestration, dependencies, or people-scoring logic.
+- [x] Preserve renderer safety and story boundaries. (AC: 1, 2, 3)
+  - [x] Reuse the existing inline escaping behavior for risk explanation and suggested questions.
+  - [x] Keep `renderReport(report: PreflightReport): string` pure and dependent only on the validated report.
+  - [x] Do not render raw prompt text, raw LLM JSON, or generic educational prose.
+  - [x] Do not add `Draft Acceptance Criteria`; Story 3.3 owns that section.
+  - [x] Do not add GitHub API writes, comment posting, action orchestration, dependencies, or people-scoring logic.
 
-- [ ] Extend focused renderer tests in `__tests__/report-renderer.test.ts`. (AC: 1, 2, 3)
-  - [ ] Assert exact canonical output and section order for a report with risk explanation and suggested questions.
-  - [ ] Assert suggested questions render once, in provider order, as Markdown task-list items.
-  - [ ] Assert risk explanation and questions cannot inject headings, task-list items, HTML, or extra lines.
-  - [ ] Assert the `Suggested Questions` section is omitted when the input list is empty.
-  - [ ] Assert suggested questions are capped by the remaining 10-line budget.
-  - [ ] Assert all missing-context items remain when missing context alone reaches or exceeds 10 lines.
-  - [ ] Assert no generic prose or `Draft Acceptance Criteria` section is introduced.
-  - [ ] Preserve Story 3.1 status, missing-context, empty-state, and injection-safety regression coverage.
+- [x] Extend focused renderer tests in `__tests__/report-renderer.test.ts`. (AC: 1, 2, 3)
+  - [x] Assert exact canonical output and section order for a report with risk explanation and suggested questions.
+  - [x] Assert suggested questions render once, in provider order, as Markdown task-list items.
+  - [x] Assert risk explanation and questions cannot inject headings, task-list items, HTML, or extra lines.
+  - [x] Assert the `Suggested Questions` section is omitted when the input list is empty.
+  - [x] Assert suggested questions are capped by the remaining 10-line budget.
+  - [x] Assert all missing-context items remain when missing context alone reaches or exceeds 10 lines.
+  - [x] Assert no generic prose or `Draft Acceptance Criteria` section is introduced.
+  - [x] Preserve Story 3.1 status, missing-context, empty-state, and injection-safety regression coverage.
 
-- [ ] Run the local validation gate.
-  - [ ] Run `rtk npm test`.
-  - [ ] Run `rtk npm run build`.
-  - [ ] Run the broader project validation command if one is already established by the repository.
+- [x] Run the local validation gate.
+  - [x] Run `rtk npm test`.
+  - [x] Run `rtk npm run build`.
+  - [x] Run the broader project validation command if one is already established by the repository.
 
 ## Dev Notes
 
@@ -195,20 +195,37 @@ No external technical research is needed. This story uses existing TypeScript, M
 
 ### Agent Model Used
 
-To be completed by the implementing agent.
+GPT-5 Codex
+
+### Implementation Plan
+
+- Extend the existing pure renderer with canonical report sections.
+- Budget suggested questions after preserving all missing-context items.
+- Add exact-output, safety, omission, and boundary tests before implementation.
 
 ### Debug Log References
 
-To be completed by the implementing agent.
+- RED: `rtk npm test -- --runTestsByPath __tests__/report-renderer.test.ts` failed with 9 expected renderer assertions before implementation.
+- GREEN: targeted renderer suite passed with 11 tests.
+- Validation: `rtk npm test`, `rtk npm run build`, and `rtk npm run all` passed.
+- One misplaced test assertion was corrected after `rtk npm run all` identified the test-only failure.
 
 ### Completion Notes List
 
-To be completed by the implementing agent.
+- Added canonical `Why This Matters` and conditional `Suggested Questions` rendering.
+- Reused inline escaping for risk explanation and suggested question text.
+- Added a deterministic 10-line combined checklist budget that never drops missing context.
+- Preserved Story 3.1 behavior and kept Draft Acceptance Criteria and GitHub write behavior out of scope.
+- Full validation passed: 9 suites, 97 tests, format, lint, TypeScript build, package, and package check.
 
 ### File List
 
-To be completed by the implementing agent.
+- `src/report-renderer.ts`
+- `__tests__/report-renderer.test.ts`
+- `_bmad-output/implementation-artifacts/3-2-render-suggested-questions-and-checklist-items.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ### Change Log
 
 - 2026-06-04: Story created and marked ready for development.
+- 2026-06-04: Implemented suggested-question and risk-explanation rendering with checklist budgeting; marked ready for review.

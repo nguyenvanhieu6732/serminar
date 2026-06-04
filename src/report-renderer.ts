@@ -1,16 +1,25 @@
 import type {
+  ChecklistItem,
   MissingContextItem,
   PreflightReport,
   PreflightStatus
 } from "./report-schema.js"
 
+const TARGET_MAX_CHECKLIST_LINES = 10
+
 export function renderReport(report: PreflightReport): string {
-  return [
+  const sections = [
     `## Dev Ticket Preflight: ${renderStatus(report.status)}`,
-    "",
-    "### Missing Context",
-    renderMissingContext(report.missing_context)
-  ].join("\n")
+    `### Missing Context\n${renderMissingContext(report.missing_context)}`,
+    `### Why This Matters\n${escapeInlineText(report.risk_explanation)}`
+  ]
+  const suggestedQuestions = renderSuggestedQuestions(report)
+
+  if (suggestedQuestions !== "") {
+    sections.push(`### Suggested Questions\n${suggestedQuestions}`)
+  }
+
+  return sections.join("\n\n")
 }
 
 function renderStatus(status: PreflightStatus): string {
@@ -35,6 +44,22 @@ function renderMissingContext(items: MissingContextItem[]): string {
         `- [ ] **${renderCategory(category)}:** ${escapeInlineText(detail)}`
     )
     .join("\n")
+}
+
+function renderSuggestedQuestions(report: PreflightReport): string {
+  const remainingQuestionSlots = Math.max(
+    0,
+    TARGET_MAX_CHECKLIST_LINES - report.missing_context.length
+  )
+
+  return report.suggested_questions
+    .slice(0, remainingQuestionSlots)
+    .map(renderChecklistItem)
+    .join("\n")
+}
+
+function renderChecklistItem({ text }: ChecklistItem): string {
+  return `- [ ] ${escapeInlineText(text)}`
 }
 
 function renderCategory(category: string): string {
