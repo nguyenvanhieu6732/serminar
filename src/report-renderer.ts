@@ -9,21 +9,21 @@ const TARGET_MAX_CHECKLIST_LINES = 10
 
 export function renderReport(report: PreflightReport): string {
   const sections = [
-    `## Dev Ticket Preflight: ${renderStatus(report.status)}`,
-    `### Missing Context\n${renderMissingContext(report.missing_context)}`,
-    `### Why This Matters\n${escapeInlineText(report.risk_explanation)}`
+    `## Kiểm Tra Ticket Trước Khi Dev: ${renderStatus(report.status)}`,
+    `### Ngữ Cảnh Còn Thiếu\n${renderMissingContext(report.missing_context)}`,
+    `### Vì Sao Điều Này Quan Trọng\n${escapeInlineText(report.risk_explanation)}`
   ]
   const suggestedQuestions = renderSuggestedQuestions(report)
 
   if (suggestedQuestions !== "") {
-    sections.push(`### Suggested Questions\n${suggestedQuestions}`)
+    sections.push(`### Câu Hỏi Gợi Ý\n${suggestedQuestions}`)
   }
 
   const draftAcceptanceCriteria = renderDraftAcceptanceCriteria(report)
 
   if (draftAcceptanceCriteria !== "") {
     sections.push(
-      `### Draft Acceptance Criteria\nEditable suggestions:\n${draftAcceptanceCriteria}`
+      `### Tiêu Chí Chấp Nhận Nháp\nGợi ý có thể chỉnh sửa:\n${draftAcceptanceCriteria}`
     )
   }
 
@@ -33,17 +33,17 @@ export function renderReport(report: PreflightReport): string {
 function renderStatus(status: PreflightStatus): string {
   switch (status) {
     case "ready":
-      return "Ready"
+      return "Sẵn Sàng"
     case "needs_clarification":
-      return "Needs Clarification"
+      return "Cần Làm Rõ"
     case "high_risk":
-      return "High Risk"
+      return "Rủi Ro Cao"
   }
 }
 
 function renderMissingContext(items: MissingContextItem[]): string {
   if (items.length === 0) {
-    return "No material missing context was found."
+    return "Không phát hiện thiếu ngữ cảnh quan trọng."
   }
 
   return items

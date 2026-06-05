@@ -359,7 +359,9 @@ describe("run", () => {
     expect(mockCreateComment).toHaveBeenCalledWith(
       expect.objectContaining({
         issue_number: 45,
-        body: expect.stringContaining("## Dev Ticket Preflight: High Risk")
+        body: expect.stringContaining(
+          "## Kiểm Tra Ticket Trước Khi Dev: Rủi Ro Cao"
+        )
       })
     )
     expect(mockedCore.info).toHaveBeenCalledWith(
@@ -554,7 +556,7 @@ describe("run", () => {
         expect.objectContaining({
           issue_number: 42,
           body: expect.stringContaining(
-            "A valid structured analysis report was not available for this run."
+            "Không có báo cáo phân tích có cấu trúc hợp lệ cho lần chạy này."
           )
         })
       )

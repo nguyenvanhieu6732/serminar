@@ -61,7 +61,7 @@ describe("runPrechecks", () => {
     expect(result.report.status).toBe("high_risk")
     expect(result.report.draft_acceptance_criteria).toEqual([])
     expect(result.report.risk_explanation).toContain(
-      "does not provide enough implementation detail"
+      "chưa cung cấp đủ chi tiết triển khai"
     )
     expect(JSON.stringify(result.report)).not.toContain(shortBody)
   })

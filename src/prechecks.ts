@@ -45,33 +45,33 @@ function createInsufficientContextReport(
     missing_context: [
       {
         category: "actor_or_role",
-        detail:
-          "The issue should identify who needs the change or who is affected."
+        detail: "Issue cần nêu rõ ai cần thay đổi này hoặc ai bị ảnh hưởng."
       },
       {
         category: "expected_behavior",
-        detail: "The issue should describe the behavior to implement or fix."
+        detail: "Issue cần mô tả hành vi cần triển khai hoặc cần sửa."
       },
       {
         category: "acceptance_criteria",
-        detail: "The issue should include testable pass/fail criteria."
+        detail: "Issue cần có tiêu chí pass/fail có thể kiểm thử."
       },
       {
         category: "edge_and_failure_behavior",
-        detail:
-          "The issue should describe important edge cases or failure behavior."
+        detail: "Issue cần mô tả các edge case quan trọng hoặc hành vi khi lỗi."
       }
     ],
     risk_explanation:
       reason === "empty_body"
-        ? "The issue body is empty, so there is not enough implementation detail to safely analyze the work."
-        : "The issue body does not provide enough implementation detail to safely analyze the work.",
+        ? "Phần mô tả issue đang trống, nên chưa đủ chi tiết triển khai để phân tích an toàn."
+        : "Phần mô tả issue chưa cung cấp đủ chi tiết triển khai để phân tích an toàn.",
     suggested_questions: [
-      { text: "Who is the user or actor affected by this work?" },
-      { text: "What behavior should change, and what should stay the same?" },
-      { text: "What are the testable acceptance criteria for completion?" },
+      { text: "Người dùng hoặc actor nào bị ảnh hưởng bởi thay đổi này?" },
+      { text: "Hành vi nào cần thay đổi, và hành vi nào cần giữ nguyên?" },
       {
-        text: "What edge cases, errors, or permission concerns should be handled?"
+        text: "Tiêu chí chấp nhận có thể kiểm thử để xác nhận hoàn thành là gì?"
+      },
+      {
+        text: "Cần xử lý edge case, lỗi, hoặc vấn đề phân quyền nào?"
       }
     ],
     draft_acceptance_criteria: [],
@@ -81,8 +81,8 @@ function createInsufficientContextReport(
         source: "precheck",
         detail:
           reason === "empty_body"
-            ? "Issue body was empty."
-            : "Issue body was below minimum useful length."
+            ? "Phần mô tả issue đang trống."
+            : "Phần mô tả issue ngắn hơn ngưỡng tối thiểu để phân tích hữu ích."
       }
     ]
   }

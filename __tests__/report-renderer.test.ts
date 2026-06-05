@@ -28,19 +28,19 @@ const baseReport: PreflightReport = {
 
 describe("renderReport", () => {
   it.each([
-    ["ready", "Ready"],
-    ["needs_clarification", "Needs Clarification"],
-    ["high_risk", "High Risk"]
+    ["ready", "Sẵn Sàng"],
+    ["needs_clarification", "Cần Làm Rõ"],
+    ["high_risk", "Rủi Ro Cao"]
   ] as const)("renders %s as the user-facing status %s", (status, label) => {
     const markdown = renderReport({ ...baseReport, status })
 
     expect(markdown).toBe(
-      `## Dev Ticket Preflight: ${label}\n\n` +
-        "### Missing Context\n" +
+      `## Kiểm Tra Ticket Trước Khi Dev: ${label}\n\n` +
+        "### Ngữ Cảnh Còn Thiếu\n" +
         "- [ ] **Acceptance criteria:** Missing testable pass/fail criteria.\n\n" +
-        "### Why This Matters\n" +
+        "### Vì Sao Điều Này Quan Trọng\n" +
         "The work artifact lacks enough detail for a reliable implementation.\n\n" +
-        "### Suggested Questions\n" +
+        "### Câu Hỏi Gợi Ý\n" +
         "- [ ] What observable behavior proves completion?"
     )
     expect(markdown).not.toContain(status)
@@ -59,13 +59,13 @@ describe("renderReport", () => {
     })
 
     expect(markdown).toBe(
-      "## Dev Ticket Preflight: Needs Clarification\n\n" +
-        "### Missing Context\n" +
+      "## Kiểm Tra Ticket Trước Khi Dev: Cần Làm Rõ\n\n" +
+        "### Ngữ Cảnh Còn Thiếu\n" +
         "- [ ] **Acceptance criteria:** Missing testable pass/fail criteria.\n" +
         "- [ ] **Edge cases:** Important edge cases are not specified.\n\n" +
-        "### Why This Matters\n" +
+        "### Vì Sao Điều Này Quan Trọng\n" +
         "The work artifact lacks enough detail for a reliable implementation.\n\n" +
-        "### Suggested Questions\n" +
+        "### Câu Hỏi Gợi Ý\n" +
         "- [ ] What observable behavior proves completion?"
     )
     expect(markdown.match(/^- \[ \] /gm)).toHaveLength(3)
@@ -79,15 +79,15 @@ describe("renderReport", () => {
     })
 
     expect(markdown).toBe(
-      "## Dev Ticket Preflight: Ready\n\n" +
-        "### Missing Context\n" +
-        "No material missing context was found.\n\n" +
-        "### Why This Matters\n" +
+      "## Kiểm Tra Ticket Trước Khi Dev: Sẵn Sàng\n\n" +
+        "### Ngữ Cảnh Còn Thiếu\n" +
+        "Không phát hiện thiếu ngữ cảnh quan trọng.\n\n" +
+        "### Vì Sao Điều Này Quan Trọng\n" +
         "The work artifact lacks enough detail for a reliable implementation.\n\n" +
-        "### Suggested Questions\n" +
+        "### Câu Hỏi Gợi Ý\n" +
         "- [ ] What observable behavior proves completion?\n\n" +
-        "### Draft Acceptance Criteria\n" +
-        "Editable suggestions:\n" +
+        "### Tiêu Chí Chấp Nhận Nháp\n" +
+        "Gợi ý có thể chỉnh sửa:\n" +
         "- [ ] Suggested: The expected behavior is visible."
     )
   })
@@ -124,16 +124,16 @@ describe("renderReport", () => {
     })
 
     expect(markdown).toContain(
-      "### Why This Matters\n1\\. Implementation risk. \\#\\#\\# Injected Section &lt;div&gt;Injected HTML&lt;/div&gt;\n\n" +
-        "### Suggested Questions\n" +
+      "### Vì Sao Điều Này Quan Trọng\n1\\. Implementation risk. \\#\\#\\# Injected Section &lt;div&gt;Injected HTML&lt;/div&gt;\n\n" +
+        "### Câu Hỏi Gợi Ý\n" +
         "- [ ] First question? \\- \\[ \\] Injected task\n" +
         "- [ ] Second question?"
     )
-    expect(markdown.indexOf("### Missing Context")).toBeLessThan(
-      markdown.indexOf("### Why This Matters")
+    expect(markdown.indexOf("### Ngữ Cảnh Còn Thiếu")).toBeLessThan(
+      markdown.indexOf("### Vì Sao Điều Này Quan Trọng")
     )
-    expect(markdown.indexOf("### Why This Matters")).toBeLessThan(
-      markdown.indexOf("### Suggested Questions")
+    expect(markdown.indexOf("### Vì Sao Điều Này Quan Trọng")).toBeLessThan(
+      markdown.indexOf("### Câu Hỏi Gợi Ý")
     )
     expect(markdown).not.toContain("\n### Injected Section")
     expect(markdown).not.toContain("\n- [ ] Injected task")
@@ -142,11 +142,11 @@ describe("renderReport", () => {
     expect(markdown.match(/Second question\?/g)).toHaveLength(1)
   })
 
-  it("omits Suggested Questions when no questions are available", () => {
+  it("omits suggested questions when no questions are available", () => {
     const markdown = renderReport({ ...baseReport, suggested_questions: [] })
 
-    expect(markdown).toContain("### Why This Matters")
-    expect(markdown).not.toContain("### Suggested Questions")
+    expect(markdown).toContain("### Vì Sao Điều Này Quan Trọng")
+    expect(markdown).not.toContain("### Câu Hỏi Gợi Ý")
   })
 
   it("caps suggested questions using the remaining ten-line budget", () => {
@@ -180,7 +180,7 @@ describe("renderReport", () => {
 
     expect(markdown.match(/^- \[ \] /gm)).toHaveLength(11)
     expect(markdown).toContain("Missing context 11.")
-    expect(markdown).not.toContain("### Suggested Questions")
+    expect(markdown).not.toContain("### Câu Hỏi Gợi Ý")
     expect(markdown).not.toContain(baseReport.suggested_questions[0].text)
   })
 
@@ -194,7 +194,7 @@ describe("renderReport", () => {
 
     expect(markdown.match(/^- \[ \] /gm)).toHaveLength(10)
     expect(markdown).toContain("Missing context 10.")
-    expect(markdown).not.toContain("### Suggested Questions")
+    expect(markdown).not.toContain("### Câu Hỏi Gợi Ý")
     expect(markdown).not.toContain(baseReport.suggested_questions[0].text)
   })
 
@@ -212,19 +212,19 @@ describe("renderReport", () => {
     })
 
     expect(markdown).toBe(
-      "## Dev Ticket Preflight: Ready\n\n" +
-        "### Missing Context\n" +
-        "No material missing context was found.\n\n" +
-        "### Why This Matters\n" +
+      "## Kiểm Tra Ticket Trước Khi Dev: Sẵn Sàng\n\n" +
+        "### Ngữ Cảnh Còn Thiếu\n" +
+        "Không phát hiện thiếu ngữ cảnh quan trọng.\n\n" +
+        "### Vì Sao Điều Này Quan Trọng\n" +
         "The work artifact lacks enough detail for a reliable implementation.\n\n" +
-        "### Suggested Questions\n" +
+        "### Câu Hỏi Gợi Ý\n" +
         "- [ ] What observable behavior proves completion?\n\n" +
-        "### Draft Acceptance Criteria\n" +
-        "Editable suggestions:\n" +
+        "### Tiêu Chí Chấp Nhận Nháp\n" +
+        "Gợi ý có thể chỉnh sửa:\n" +
         "- [ ] The export completes with the selected date range.\n" +
         "- [ ] The result is testable. \\#\\#\\# Injected Section \\- \\[ \\] Injected task &lt;div&gt;Injected HTML&lt;/div&gt;"
     )
-    expect(markdown.match(/Editable suggestions:/g)).toHaveLength(1)
+    expect(markdown.match(/Gợi ý có thể chỉnh sửa:/g)).toHaveLength(1)
     expect(markdown.match(/The export completes/g)).toHaveLength(1)
     expect(markdown.match(/The result is testable/g)).toHaveLength(1)
     expect(markdown).not.toContain("\n### Injected Section")
@@ -237,8 +237,8 @@ describe("renderReport", () => {
     (status) => {
       const markdown = renderReport({ ...baseReport, status })
 
-      expect(markdown).toContain("### Suggested Questions")
-      expect(markdown).not.toContain("### Draft Acceptance Criteria")
+      expect(markdown).toContain("### Câu Hỏi Gợi Ý")
+      expect(markdown).not.toContain("### Tiêu Chí Chấp Nhận Nháp")
       expect(markdown).not.toContain(
         baseReport.draft_acceptance_criteria[0].text
       )
@@ -248,9 +248,9 @@ describe("renderReport", () => {
   it("omits draft acceptance criteria when context is missing even if status is ready", () => {
     const markdown = renderReport({ ...baseReport, status: "ready" })
 
-    expect(markdown).toContain("### Missing Context")
-    expect(markdown).toContain("### Suggested Questions")
-    expect(markdown).not.toContain("### Draft Acceptance Criteria")
+    expect(markdown).toContain("### Ngữ Cảnh Còn Thiếu")
+    expect(markdown).toContain("### Câu Hỏi Gợi Ý")
+    expect(markdown).not.toContain("### Tiêu Chí Chấp Nhận Nháp")
     expect(markdown).not.toContain(baseReport.draft_acceptance_criteria[0].text)
   })
 
@@ -262,11 +262,11 @@ describe("renderReport", () => {
       draft_acceptance_criteria: []
     })
 
-    expect(markdown).not.toContain("### Draft Acceptance Criteria")
-    expect(markdown).not.toContain("Editable suggestions:")
+    expect(markdown).not.toContain("### Tiêu Chí Chấp Nhận Nháp")
+    expect(markdown).not.toContain("Gợi ý có thể chỉnh sửa:")
   })
 
-  it("renders draft acceptance criteria after Why This Matters when questions are absent", () => {
+  it("renders draft acceptance criteria after the risk explanation when questions are absent", () => {
     const markdown = renderReport({
       ...baseReport,
       status: "ready",
@@ -275,19 +275,19 @@ describe("renderReport", () => {
     })
 
     expect(markdown).toContain(
-      "### Why This Matters\n" +
+      "### Vì Sao Điều Này Quan Trọng\n" +
         "The work artifact lacks enough detail for a reliable implementation.\n\n" +
-        "### Draft Acceptance Criteria\n" +
-        "Editable suggestions:"
+        "### Tiêu Chí Chấp Nhận Nháp\n" +
+        "Gợi ý có thể chỉnh sửa:"
     )
-    expect(markdown).not.toContain("### Suggested Questions")
+    expect(markdown).not.toContain("### Câu Hỏi Gợi Ý")
   })
 
   it("does not invent filler or render sections owned by later stories", () => {
     const markdown = renderReport(baseReport)
 
     expect(markdown.match(/^- \[ \] /gm)).toHaveLength(2)
-    expect(markdown).not.toContain("Draft Acceptance Criteria")
+    expect(markdown).not.toContain("Tiêu Chí Chấp Nhận Nháp")
     expect(markdown).not.toContain(baseReport.draft_acceptance_criteria[0].text)
     expect(markdown).not.toContain("Here are some tips")
   })

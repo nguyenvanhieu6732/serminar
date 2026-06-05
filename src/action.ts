@@ -136,14 +136,14 @@ function createInvalidLlmReportFallback(): PreflightReport {
       {
         category: "automated_analysis",
         detail:
-          "A valid structured analysis report was not available for this run."
+          "Không có báo cáo phân tích có cấu trúc hợp lệ cho lần chạy này."
       }
     ],
     risk_explanation:
-      "The work artifact should be reviewed directly because automated structured analysis could not produce a valid advisory report.",
+      "Cần rà soát trực tiếp work artifact vì phân tích tự động không tạo được báo cáo tư vấn hợp lệ.",
     suggested_questions: [
       {
-        text: "Can the actor, expected behavior, acceptance criteria, and failure behavior be confirmed from the issue?"
+        text: "Có thể xác nhận actor, hành vi mong đợi, tiêu chí chấp nhận, và hành vi khi lỗi từ issue này không?"
       }
     ],
     draft_acceptance_criteria: [],
@@ -151,7 +151,7 @@ function createInvalidLlmReportFallback(): PreflightReport {
     evidence: [
       {
         source: "body",
-        detail: "Automated structured analysis did not return a valid report."
+        detail: "Phân tích tự động có cấu trúc không trả về báo cáo hợp lệ."
       }
     ]
   }
