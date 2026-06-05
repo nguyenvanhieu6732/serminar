@@ -79,12 +79,14 @@ export async function run(): Promise<void> {
           `LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`
         )
       } catch (error) {
-        if (
-          error instanceof LlmOutputParseError ||
-          error instanceof PreflightReportValidationError
-        ) {
+        if (error instanceof LlmOutputParseError) {
           core.info(
-            `LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report. Posting safe fallback report.`
+            `LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.${error.reason}. Posting safe fallback report.`
+          )
+          report = createInvalidLlmReportFallback()
+        } else if (error instanceof PreflightReportValidationError) {
+          core.info(
+            `LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.schema_validation_failed. Posting safe fallback report.`
           )
           report = createInvalidLlmReportFallback()
         } else {

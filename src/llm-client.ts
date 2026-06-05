@@ -51,9 +51,15 @@ export interface LlmClient {
 }
 
 export class LlmOutputParseError extends Error {
-  constructor(message = "Invalid structured LLM output") {
+  readonly reason: "missing_output_text" | "malformed_json"
+
+  constructor(
+    reason: "missing_output_text" | "malformed_json",
+    message = "Invalid structured LLM output"
+  ) {
     super(message)
     this.name = "LlmOutputParseError"
+    this.reason = reason
   }
 }
 
@@ -228,7 +234,7 @@ function parseOutputText(outputText: string): unknown {
   try {
     return JSON.parse(outputText) as unknown
   } catch {
-    throw new LlmOutputParseError()
+    throw new LlmOutputParseError("malformed_json")
   }
 }
 
@@ -243,5 +249,5 @@ function extractOutputText(response: unknown): string {
     return response.output_text
   }
 
-  throw new LlmOutputParseError()
+  throw new LlmOutputParseError("missing_output_text")
 }

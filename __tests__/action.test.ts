@@ -498,13 +498,23 @@ describe("run", () => {
   })
 
   it.each([
-    ["malformed JSON", '{"risk_explanation":"private raw model output"'],
+    [
+      "missing output text",
+      "",
+      "LLM structured analysis failed validation for issue #42: invalid_report.missing_output_text. Posting safe fallback report."
+    ],
+    [
+      "malformed JSON",
+      '{"risk_explanation":"private raw model output"',
+      "LLM structured analysis failed validation for issue #42: invalid_report.malformed_json. Posting safe fallback report."
+    ],
     [
       "incomplete report",
       JSON.stringify({
         status: "ready",
         risk_explanation: "private incomplete model output"
-      })
+      }),
+      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed. Posting safe fallback report."
     ],
     [
       "unexpected mutation fields",
@@ -512,18 +522,20 @@ describe("run", () => {
         ...structuredReport,
         labels: ["ready-for-dev"],
         comment_body: "private rendered comment"
-      })
+      }),
+      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed. Posting safe fallback report."
     ],
     [
       "invalid enum values",
       JSON.stringify({
         ...structuredReport,
         status: "blocked"
-      })
+      }),
+      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed. Posting safe fallback report."
     ]
   ])(
     "posts a safe fallback when LLM output is invalid: %s",
-    async (_caseName, outputText) => {
+    async (_caseName, outputText, expectedLog) => {
       const githubToken = "gh-secret-token"
       const openaiApiKey = "openai-secret-key"
       mockResponsesCreate.mockResolvedValue({ output_text: outputText })
@@ -537,9 +549,7 @@ describe("run", () => {
       expect(mockedCore.info).toHaveBeenCalledWith(
         "LLM structured analysis requested for issue #42."
       )
-      expect(mockedCore.info).toHaveBeenCalledWith(
-        "LLM structured analysis failed validation for issue #42: invalid_report. Posting safe fallback report."
-      )
+      expect(mockedCore.info).toHaveBeenCalledWith(expectedLog)
       expect(mockCreateComment).toHaveBeenCalledWith(
         expect.objectContaining({
           issue_number: 42,

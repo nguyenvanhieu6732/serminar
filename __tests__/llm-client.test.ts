@@ -279,6 +279,13 @@ describe("OpenAiLlmClient", () => {
     await expect(
       client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
     ).rejects.toThrow("Invalid structured LLM output")
+
+    try {
+      await client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
+    } catch (error) {
+      expect(error).toBeInstanceOf(LlmOutputParseError)
+      expect((error as LlmOutputParseError).reason).toBe("missing_output_text")
+    }
   })
 
   it("throws a safe parse error for malformed output_text without exposing raw output", async () => {
@@ -294,6 +301,7 @@ describe("OpenAiLlmClient", () => {
       await client.analyzeIssue(buildLlmAnalysisInput(readyIssue()))
     } catch (error) {
       expect(error).toBeInstanceOf(LlmOutputParseError)
+      expect((error as LlmOutputParseError).reason).toBe("malformed_json")
       expect(String(error)).not.toContain(privateRawOutput)
       expect(String(error)).not.toContain("private issue detail")
     }

@@ -35429,9 +35429,12 @@ async function run() {
                 core.info(`LLM structured analysis validated for issue #${llmInput.logMetadata.issueNumber}: ${report.status}.`);
             }
             catch (error) {
-                if (error instanceof llm_client_js_1.LlmOutputParseError ||
-                    error instanceof report_schema_js_1.PreflightReportValidationError) {
-                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report. Posting safe fallback report.`);
+                if (error instanceof llm_client_js_1.LlmOutputParseError) {
+                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.${error.reason}. Posting safe fallback report.`);
+                    report = createInvalidLlmReportFallback();
+                }
+                else if (error instanceof report_schema_js_1.PreflightReportValidationError) {
+                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.schema_validation_failed. Posting safe fallback report.`);
                     report = createInvalidLlmReportFallback();
                 }
                 else {
@@ -35701,9 +35704,11 @@ const security_js_1 = __nccwpck_require__(3725);
 exports.MAX_ISSUE_BODY_CHARS = 6000;
 exports.DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 class LlmOutputParseError extends Error {
-    constructor(message = "Invalid structured LLM output") {
+    reason;
+    constructor(reason, message = "Invalid structured LLM output") {
         super(message);
         this.name = "LlmOutputParseError";
+        this.reason = reason;
     }
 }
 exports.LlmOutputParseError = LlmOutputParseError;
@@ -35869,7 +35874,7 @@ function parseOutputText(outputText) {
         return JSON.parse(outputText);
     }
     catch {
-        throw new LlmOutputParseError();
+        throw new LlmOutputParseError("malformed_json");
     }
 }
 function extractOutputText(response) {
@@ -35880,7 +35885,7 @@ function extractOutputText(response) {
         response.output_text.length > 0) {
         return response.output_text;
     }
-    throw new LlmOutputParseError();
+    throw new LlmOutputParseError("missing_output_text");
 }
 
 
