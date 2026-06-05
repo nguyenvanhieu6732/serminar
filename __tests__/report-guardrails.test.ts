@@ -79,7 +79,12 @@ describe("enforceReportGuardrails", () => {
     "Close the issue until requirements are complete.",
     "Write a repository file containing the final specification.",
     "Create a required check that blocks merging.",
-    "Block development until the issue is clarified."
+    "Block development until the issue is clarified.",
+    "The ready-for-dev label should be removed before development starts.",
+    "The issue body should be updated with the missing details.",
+    "A repository file should be written with the final specification.",
+    "Post an issue comment asking for missing details.",
+    "The report should use a readiness score of 2/10."
   ])("rejects mutation or workflow-gate suggestion: %s", (text) => {
     expect(() =>
       enforceReportGuardrails({
@@ -93,7 +98,8 @@ describe("enforceReportGuardrails", () => {
     "Which label triggers the workflow?",
     "Which file should change?",
     "What permissions are required for the expected behavior?",
-    "Should the issue describe what happens when the check fails?"
+    "Should the issue describe what happens when the check fails?",
+    "What should happen when the user fails login?"
   ])("allows benign readiness context: %s", (text) => {
     expect(
       enforceReportGuardrails({

@@ -4,7 +4,7 @@ baseline_commit: 2187ee4694e44804b012658bde1a31ab41b11df6
 
 # Story 3.5: Enforce Non-Blocking and No-People-Analytics Guardrails
 
-Status: review
+Status: done
 
 Story Key: `3-5-enforce-non-blocking-and-no-people-analytics-guardrails`
 
@@ -65,6 +65,14 @@ So that the team can adopt it without workflow friction.
   - [x] Run `rtk npm test`.
   - [x] Run `rtk npm run build`.
   - [x] Run `rtk npm run all`.
+
+### Review Findings
+
+- [x] [Review][Patch] Workflow least privilege needs read-only checkout permission [`.github/workflows/dev-ticket-preflight.yml:7`] — decision resolved: allow `contents: read` for `actions/checkout@v4` while continuing to forbid `contents: write`; `issues: write` remains the only write permission.
+- [x] [Review][Patch] Unsafe report rejection returns success instead of failing the run [src/action.ts:143]
+- [x] [Review][Patch] People-analytics guardrail can reject benign user/product failure language [src/report-guardrails.ts:3]
+- [x] [Review][Patch] Guardrail misses common forbidden score and mutation phrasings [src/report-guardrails.ts:8]
+- [x] [Review][Patch] Tests lock in the unsafe-report success path instead of the specified failure [__tests__/action.test.ts:492]
 
 ## Dev Notes
 

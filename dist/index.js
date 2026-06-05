@@ -35465,6 +35465,7 @@ async function postReport(githubToken, issue, report) {
     catch (error) {
         if (error instanceof report_guardrails_js_1.ReportGuardrailError) {
             core.warning(`Preflight report rejected for issue #${issue.issueNumber}: unsafe_report.`);
+            core.setFailed("Preflight report rejected: unsafe_report");
             return;
         }
         throw error;
@@ -35942,21 +35943,32 @@ function createInsufficientContextReport(reason) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ReportGuardrailError = void 0;
 exports.enforceReportGuardrails = enforceReportGuardrails;
-const PEOPLE_ROLES = "author|issue owner|ticket owner|requester|reporter|developer|engineer|teammate|team member|assignee|user";
+const PEOPLE_ROLES = "author|issue owner|ticket owner|requester|reporter|developer|engineer|teammate|team member|assignee";
 const UNSAFE_NORMALIZED_PATTERNS = [
-    new RegExp(`\\b(?:${PEOPLE_ROLES})\\b.{0,48}\\b(?:failed|forgot|neglected|omitted|caused|responsible|to blame|at fault)\\b`),
+    /\b(?:readiness\s+)?(?:score|rating|rank|grade)\b.{0,32}\b(?:\d+\s*(?:\/|out of)\s*\d+|\d+%|high|medium|low)\b/,
+    /\b(?:\d+\s*(?:\/|out of)\s*\d+|\d+%)\b.{0,32}\b(?:readiness\s+)?(?:score|rating|rank|grade)\b/,
+    new RegExp(`\\b(?:${PEOPLE_ROLES})\\b.{0,48}\\b(?:failed\\s+to|forgot\\s+to|neglected\\s+to|omitted|caused|responsible|to blame|at fault)\\b`),
     new RegExp(`\\b(?:score|rate|rating|rank|grade|performance)\\b.{0,48}\\b(?:${PEOPLE_ROLES}|person|people|team)\\b`),
     new RegExp(`\\b(?:${PEOPLE_ROLES}|person|people|team)\\b.{0,48}\\b(?:score|rating|rank|grade|performance)\\b`),
     /\b(?:remove|add|apply|replace|change)\b.{0,48}\blabels?\b/,
+    /\blabels?\b.{0,48}\b(?:removed|added|applied|replaced|changed)\b/,
     /\b(?:assign|unassign|reassign)\b.{0,48}\b(?:issue|ticket|user|person|people|owner|assignee|team)\b/,
+    /\b(?:issue|ticket|user|person|people|owner|assignee|team)\b.{0,48}\b(?:assigned|unassigned|reassigned)\b/,
     /\b(?:edit|update|rewrite|replace|change)\b.{0,48}\b(?:issue|ticket)\s+(?:body|description)\b/,
+    /\b(?:issue|ticket)\s+(?:body|description)\b.{0,48}\b(?:edited|updated|rewritten|replaced|changed)\b/,
     /\b(?:close|reopen|lock|unlock)\b.{0,32}\b(?:issue|ticket)\b/,
+    /\b(?:issue|ticket)\b.{0,32}\b(?:closed|reopened|locked|unlocked)\b/,
     /\b(?:write|create|modify|edit|delete|remove)\b.{0,48}\b(?:repository\s+)?files?\b/,
+    /\b(?:repository\s+)?files?\b.{0,48}\b(?:written|created|modified|edited|deleted|removed)\b/,
     /\b(?:create|add|require|mark)\b.{0,48}\brequired checks?\b/,
+    /\brequired checks?\b.{0,48}\b(?:created|added|required|marked)\b/,
     /\b(?:close|merge|update|edit|change)\b.{0,48}\b(?:pull request|pr)\b/,
+    /\b(?:pull request|pr)\b.{0,48}\b(?:closed|merged|updated|edited|changed)\b/,
+    /\b(?:post|create|add|update|edit|reply)\b.{0,48}\b(?:issue\s+)?comments?\b/,
+    /\b(?:issue\s+)?comments?\b.{0,48}\b(?:posted|created|added|updated|edited|replied)\b/,
     /\b(?:block|stop|prevent|gate|halt)\b.{0,48}\b(?:development|implementation|merge|merging|workflow|release)\b/
 ];
-const NAMED_PERSON_CAUSALITY_PATTERN = /\b[A-Z][a-z]{1,}\b.{0,48}\b(?:cause|caused|failed|forgot|neglected|omitted|is responsible|is to blame)\b/;
+const NAMED_PERSON_CAUSALITY_PATTERN = /\b[A-Z][a-z]{1,}\b.{0,48}\b(?:cause|caused|failed\s+to|forgot\s+to|neglected\s+to|omitted|is responsible|is to blame)\b/;
 class ReportGuardrailError extends Error {
     constructor(message = "Unsafe preflight report") {
         super(message);
@@ -35984,11 +35996,12 @@ function getRenderableText(report) {
     ];
 }
 function isUnsafeText(text) {
-    if (NAMED_PERSON_CAUSALITY_PATTERN.test(text)) {
+    const normalized = text.normalize("NFKC").replace(/\s+/g, " ");
+    if (NAMED_PERSON_CAUSALITY_PATTERN.test(normalized)) {
         return true;
     }
-    const normalized = text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
-    return UNSAFE_NORMALIZED_PATTERNS.some((pattern) => pattern.test(normalized));
+    const normalizedLowercase = normalized.toLowerCase();
+    return UNSAFE_NORMALIZED_PATTERNS.some((pattern) => pattern.test(normalizedLowercase));
 }
 
 

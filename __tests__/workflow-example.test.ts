@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs"
 
 describe("workflow example", () => {
   const workflow = readFileSync("examples/workflow.yml", "utf8")
+  const localWorkflow = readFileSync(
+    ".github/workflows/dev-ticket-preflight.yml",
+    "utf8"
+  )
   const readme = readFileSync("README.md", "utf8")
 
   it("uses the issues labeled trigger with issue-scoped concurrency", () => {
@@ -30,6 +34,16 @@ describe("workflow example", () => {
     expect(workflow).not.toContain("contents: write")
     expect(workflow).not.toContain("pull-requests: write")
     expect(workflow).not.toContain("actions: write")
+  })
+
+  it("allows only read access for local-action checkout", () => {
+    expect(localWorkflow).toContain(
+      "permissions:\n  contents: read\n  issues: write"
+    )
+    expect(localWorkflow).not.toContain("checks: write")
+    expect(localWorkflow).not.toContain("contents: write")
+    expect(localWorkflow).not.toContain("pull-requests: write")
+    expect(localWorkflow).not.toContain("actions: write")
   })
 
   it("documents duplicate prevention and its limits", () => {

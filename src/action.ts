@@ -144,6 +144,7 @@ async function postReport(
       core.warning(
         `Preflight report rejected for issue #${issue.issueNumber}: unsafe_report.`
       )
+      core.setFailed("Preflight report rejected: unsafe_report")
       return
     }
 

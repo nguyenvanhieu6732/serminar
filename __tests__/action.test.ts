@@ -489,7 +489,9 @@ describe("run", () => {
     expect(mockedCore.warning).toHaveBeenCalledWith(
       "Preflight report rejected for issue #42: unsafe_report."
     )
-    expect(mockedCore.setFailed).not.toHaveBeenCalled()
+    expect(mockedCore.setFailed).toHaveBeenCalledWith(
+      "Preflight report rejected: unsafe_report"
+    )
     expect(mockedCore.info).not.toHaveBeenCalledWith(
       expect.stringContaining(unsafeText)
     )
