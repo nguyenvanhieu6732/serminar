@@ -214,27 +214,30 @@ describe("OpenAiLlmClient", () => {
     ])
     expect(request.text.format.schema.properties.risk_explanation).toEqual({
       type: "string",
-      pattern: "\\S"
+      pattern: "[A-Za-z0-9]"
     })
     expect(
       request.text.format.schema.properties.missing_context.items.properties
         .category
-    ).toEqual({ type: "string", pattern: "\\S" })
+    ).toEqual({ type: "string", pattern: "[A-Za-z0-9]" })
     expect(
       request.text.format.schema.properties.missing_context.items.properties
         .detail
-    ).toEqual({ type: "string", pattern: "\\S" })
+    ).toEqual({ type: "string", pattern: "[A-Za-z0-9]" })
     expect(
       request.text.format.schema.properties.suggested_questions.items.properties
         .text
-    ).toEqual({ type: "string", pattern: "\\S" })
+    ).toEqual({ type: "string", pattern: "[A-Za-z0-9]" })
     expect(
       request.text.format.schema.properties.draft_acceptance_criteria.items
         .properties.text
-    ).toEqual({ type: "string", pattern: "\\S" })
+    ).toEqual({ type: "string", pattern: "[A-Za-z0-9]" })
     expect(
       request.text.format.schema.properties.evidence.items.properties.detail
-    ).toEqual({ type: "string", pattern: "\\S" })
+    ).toEqual({ type: "string", pattern: "[A-Za-z0-9]" })
+    expect(JSON.stringify(request)).toContain(
+      "never use punctuation-only placeholders"
+    )
     expect(JSON.stringify(request)).not.toContain("## Dev Ticket Preflight")
     expect(JSON.stringify(request)).not.toContain("raw freeform")
   })

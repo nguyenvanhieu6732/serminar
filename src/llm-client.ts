@@ -63,9 +63,9 @@ export class LlmOutputParseError extends Error {
   }
 }
 
-const NON_EMPTY_STRING_SCHEMA = {
+const MEANINGFUL_STRING_SCHEMA = {
   type: "string",
-  pattern: "\\S"
+  pattern: "[A-Za-z0-9]"
 } as const
 
 export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
@@ -96,12 +96,12 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
           additionalProperties: false,
           required: ["category", "detail"],
           properties: {
-            category: NON_EMPTY_STRING_SCHEMA,
-            detail: NON_EMPTY_STRING_SCHEMA
+            category: MEANINGFUL_STRING_SCHEMA,
+            detail: MEANINGFUL_STRING_SCHEMA
           }
         }
       },
-      risk_explanation: NON_EMPTY_STRING_SCHEMA,
+      risk_explanation: MEANINGFUL_STRING_SCHEMA,
       suggested_questions: {
         type: "array",
         items: {
@@ -109,7 +109,7 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
           additionalProperties: false,
           required: ["text"],
           properties: {
-            text: NON_EMPTY_STRING_SCHEMA
+            text: MEANINGFUL_STRING_SCHEMA
           }
         }
       },
@@ -120,7 +120,7 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
           additionalProperties: false,
           required: ["text"],
           properties: {
-            text: NON_EMPTY_STRING_SCHEMA
+            text: MEANINGFUL_STRING_SCHEMA
           }
         }
       },
@@ -139,7 +139,7 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
               type: "string",
               enum: ["title", "body", "precheck"]
             },
-            detail: NON_EMPTY_STRING_SCHEMA
+            detail: MEANINGFUL_STRING_SCHEMA
           }
         }
       }
@@ -154,6 +154,7 @@ const ANALYSIS_INSTRUCTIONS = [
   "Use ready only when no material missing context is detected; otherwise use needs_clarification or high_risk conservatively.",
   "Identify missing context across actor/user role, expected behavior, acceptance criteria, error/failure behavior, permission/security implications when relevant, edge cases, and non-functional constraints.",
   "Do not suggest GitHub mutations, workflow gates, label changes, assignee changes, checks, file writes, pull request changes, issue comments, or issue state changes.",
+  "Write risk_explanation as a concise sentence explaining why the selected status follows from the issue data; never use punctuation-only placeholders.",
   "Only include draft acceptance criteria when the title/body provide enough context to make them testable; phrase them as editable suggestions."
 ].join(" ")
 

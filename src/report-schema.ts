@@ -32,6 +32,7 @@ export type PreflightReportValidationReason =
   | "missing_key"
   | "invalid_type"
   | "empty_string"
+  | "invalid_content"
   | "invalid_enum"
 
 const PREFLIGHT_REPORT_KEYS = new Set([
@@ -91,6 +92,10 @@ export function validatePreflightReport(raw: unknown): PreflightReport {
 
   if (riskExplanation.length === 0) {
     throwInvalidReport("empty_string", "report.risk_explanation")
+  }
+
+  if (!hasMeaningfulContent(riskExplanation)) {
+    throwInvalidReport("invalid_content", "report.risk_explanation")
   }
 
   return {
@@ -249,6 +254,10 @@ function requireNonEmptyTrimmedString(raw: unknown, path: string): string {
     throwInvalidReport("empty_string", path)
   }
 
+  if (!hasMeaningfulContent(value)) {
+    throwInvalidReport("invalid_content", path)
+  }
+
   return value
 }
 
@@ -269,4 +278,8 @@ function throwInvalidReport(
   path: string
 ): never {
   throw new PreflightReportValidationError(reason, path)
+}
+
+function hasMeaningfulContent(value: string): boolean {
+  return /[\p{L}\p{N}]/u.test(value)
 }

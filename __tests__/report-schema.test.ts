@@ -133,6 +133,12 @@ describe("validatePreflightReport", () => {
       { missing_context: [{ category: "x", detail: " " }] },
       "empty_string",
       "report.missing_context[0].detail"
+    ],
+    [
+      "punctuation-only risk explanation",
+      { risk_explanation: "." },
+      "invalid_content",
+      "report.risk_explanation"
     ]
   ])(
     "reports safe validation metadata for %s",
