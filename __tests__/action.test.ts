@@ -514,7 +514,7 @@ describe("run", () => {
         status: "ready",
         risk_explanation: "private incomplete model output"
       }),
-      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed. Posting safe fallback report."
+      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed.missing_key.report.missing_context. Posting safe fallback report."
     ],
     [
       "unexpected mutation fields",
@@ -523,7 +523,7 @@ describe("run", () => {
         labels: ["ready-for-dev"],
         comment_body: "private rendered comment"
       }),
-      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed. Posting safe fallback report."
+      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed.unexpected_key.report.*. Posting safe fallback report."
     ],
     [
       "invalid enum values",
@@ -531,7 +531,7 @@ describe("run", () => {
         ...structuredReport,
         status: "blocked"
       }),
-      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed. Posting safe fallback report."
+      "LLM structured analysis failed validation for issue #42: invalid_report.schema_validation_failed.invalid_enum.report.status. Posting safe fallback report."
     ]
   ])(
     "posts a safe fallback when LLM output is invalid: %s",

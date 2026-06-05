@@ -26,6 +26,14 @@ export interface PreflightReport {
   readonly evidence: EvidenceItem[]
 }
 
+export type PreflightReportValidationReason =
+  | "not_plain_object"
+  | "unexpected_key"
+  | "missing_key"
+  | "invalid_type"
+  | "empty_string"
+  | "invalid_enum"
+
 const PREFLIGHT_REPORT_KEYS = new Set([
   "status",
   "missing_context",
@@ -57,32 +65,55 @@ const EVIDENCE_SOURCES = new Set<EvidenceItem["source"]>([
 ])
 
 export class PreflightReportValidationError extends Error {
-  constructor(message = "Invalid preflight report") {
+  readonly reason: PreflightReportValidationReason
+  readonly path: string
+
+  constructor(
+    reason: PreflightReportValidationReason = "invalid_type",
+    path = "report",
+    message = "Invalid preflight report"
+  ) {
     super(message)
     this.name = "PreflightReportValidationError"
+    this.reason = reason
+    this.path = path
   }
 }
 
 export function validatePreflightReport(raw: unknown): PreflightReport {
-  const report = requirePlainObject(raw)
-  rejectUnexpectedKeys(report)
+  const report = requirePlainObject(raw, "report")
+  rejectUnexpectedKeys(report, PREFLIGHT_REPORT_KEYS, "report")
 
-  const riskExplanation = requireString(report.risk_explanation).trim()
+  const riskExplanation = requireString(
+    report.risk_explanation,
+    "report.risk_explanation"
+  ).trim()
 
   if (riskExplanation.length === 0) {
-    throwInvalidReport()
+    throwInvalidReport("empty_string", "report.risk_explanation")
   }
 
   return {
-    status: requireEnum(report.status, PREFLIGHT_STATUSES),
-    missing_context: normalizeMissingContextItems(report.missing_context),
-    risk_explanation: riskExplanation,
-    suggested_questions: normalizeChecklistItems(report.suggested_questions),
-    draft_acceptance_criteria: normalizeChecklistItems(
-      report.draft_acceptance_criteria
+    status: requireEnum(report.status, PREFLIGHT_STATUSES, "report.status"),
+    missing_context: normalizeMissingContextItems(
+      report.missing_context,
+      "report.missing_context"
     ),
-    confidence: requireEnum(report.confidence, CONFIDENCE_VALUES),
-    evidence: normalizeEvidenceItems(report.evidence)
+    risk_explanation: riskExplanation,
+    suggested_questions: normalizeChecklistItems(
+      report.suggested_questions,
+      "report.suggested_questions"
+    ),
+    draft_acceptance_criteria: normalizeChecklistItems(
+      report.draft_acceptance_criteria,
+      "report.draft_acceptance_criteria"
+    ),
+    confidence: requireEnum(
+      report.confidence,
+      CONFIDENCE_VALUES,
+      "report.confidence"
+    ),
+    evidence: normalizeEvidenceItems(report.evidence, "report.evidence")
   }
 }
 
@@ -110,33 +141,52 @@ function determineConservativeStatus(report: PreflightReport): PreflightStatus {
   return "needs_clarification"
 }
 
-function normalizeMissingContextItems(raw: unknown): MissingContextItem[] {
-  return requireArray(raw).map((item) => {
-    const object = requirePlainObject(item)
-    rejectUnexpectedKeys(object, MISSING_CONTEXT_ITEM_KEYS)
-    const category = requireNonEmptyTrimmedString(object.category)
-    const detail = requireNonEmptyTrimmedString(object.detail)
+function normalizeMissingContextItems(
+  raw: unknown,
+  path: string
+): MissingContextItem[] {
+  return requireArray(raw, path).map((item, index) => {
+    const itemPath = `${path}[${index}]`
+    const object = requirePlainObject(item, itemPath)
+    rejectUnexpectedKeys(object, MISSING_CONTEXT_ITEM_KEYS, itemPath)
+    const category = requireNonEmptyTrimmedString(
+      object.category,
+      `${itemPath}.category`
+    )
+    const detail = requireNonEmptyTrimmedString(
+      object.detail,
+      `${itemPath}.detail`
+    )
 
     return { category, detail }
   })
 }
 
-function normalizeChecklistItems(raw: unknown): ChecklistItem[] {
-  return requireArray(raw).map((item) => {
-    const object = requirePlainObject(item)
-    rejectUnexpectedKeys(object, CHECKLIST_ITEM_KEYS)
-    const text = requireNonEmptyTrimmedString(object.text)
+function normalizeChecklistItems(raw: unknown, path: string): ChecklistItem[] {
+  return requireArray(raw, path).map((item, index) => {
+    const itemPath = `${path}[${index}]`
+    const object = requirePlainObject(item, itemPath)
+    rejectUnexpectedKeys(object, CHECKLIST_ITEM_KEYS, itemPath)
+    const text = requireNonEmptyTrimmedString(object.text, `${itemPath}.text`)
 
     return { text }
   })
 }
 
-function normalizeEvidenceItems(raw: unknown): EvidenceItem[] {
-  return requireArray(raw).map((item) => {
-    const object = requirePlainObject(item)
-    rejectUnexpectedKeys(object, EVIDENCE_ITEM_KEYS)
-    const source = requireEnum(object.source, EVIDENCE_SOURCES)
-    const detail = requireNonEmptyTrimmedString(object.detail)
+function normalizeEvidenceItems(raw: unknown, path: string): EvidenceItem[] {
+  return requireArray(raw, path).map((item, index) => {
+    const itemPath = `${path}[${index}]`
+    const object = requirePlainObject(item, itemPath)
+    rejectUnexpectedKeys(object, EVIDENCE_ITEM_KEYS, itemPath)
+    const source = requireEnum(
+      object.source,
+      EVIDENCE_SOURCES,
+      `${itemPath}.source`
+    )
+    const detail = requireNonEmptyTrimmedString(
+      object.detail,
+      `${itemPath}.detail`
+    )
 
     return { source, detail }
   })
@@ -144,68 +194,79 @@ function normalizeEvidenceItems(raw: unknown): EvidenceItem[] {
 
 function rejectUnexpectedKeys(
   report: Record<string, unknown>,
-  allowedKeys = PREFLIGHT_REPORT_KEYS
+  allowedKeys: Set<string>,
+  path: string
 ): void {
   for (const key of Object.keys(report)) {
     if (!allowedKeys.has(key)) {
-      throwInvalidReport()
+      throwInvalidReport("unexpected_key", `${path}.*`)
     }
   }
 
   for (const key of allowedKeys) {
     if (!Object.prototype.hasOwnProperty.call(report, key)) {
-      throwInvalidReport()
+      throwInvalidReport("missing_key", `${path}.${key}`)
     }
   }
 }
 
-function requirePlainObject(raw: unknown): Record<string, unknown> {
+function requirePlainObject(
+  raw: unknown,
+  path: string
+): Record<string, unknown> {
   if (
     typeof raw !== "object" ||
     raw === null ||
     Array.isArray(raw) ||
     Object.getPrototypeOf(raw) !== Object.prototype
   ) {
-    throwInvalidReport()
+    throwInvalidReport("not_plain_object", path)
   }
 
   return raw as Record<string, unknown>
 }
 
-function requireArray(raw: unknown): unknown[] {
+function requireArray(raw: unknown, path: string): unknown[] {
   if (!Array.isArray(raw)) {
-    throwInvalidReport()
+    throwInvalidReport("invalid_type", path)
   }
 
   return raw
 }
 
-function requireString(raw: unknown): string {
+function requireString(raw: unknown, path: string): string {
   if (typeof raw !== "string") {
-    throwInvalidReport()
+    throwInvalidReport("invalid_type", path)
   }
 
   return raw
 }
 
-function requireNonEmptyTrimmedString(raw: unknown): string {
-  const value = requireString(raw).trim()
+function requireNonEmptyTrimmedString(raw: unknown, path: string): string {
+  const value = requireString(raw, path).trim()
 
   if (value.length === 0) {
-    throwInvalidReport()
+    throwInvalidReport("empty_string", path)
   }
 
   return value
 }
 
-function requireEnum<T extends string>(raw: unknown, values: Set<T>): T {
+function requireEnum<T extends string>(
+  raw: unknown,
+  values: Set<T>,
+  path: string
+): T {
   if (typeof raw !== "string" || !values.has(raw as T)) {
-    throwInvalidReport()
+    throwInvalidReport("invalid_enum", path)
   }
 
   return raw as T
 }
 
-function throwInvalidReport(): never {
-  throw new PreflightReportValidationError()
+function throwInvalidReport(
+  reason: PreflightReportValidationReason,
+  path: string
+): never {
+  throw new PreflightReportValidationError(reason, path)
 }

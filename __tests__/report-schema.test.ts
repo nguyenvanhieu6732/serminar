@@ -98,6 +98,77 @@ describe("validatePreflightReport", () => {
   })
 
   it.each([
+    [
+      "invalid status enum",
+      { status: "blocked" },
+      "invalid_enum",
+      "report.status"
+    ],
+    [
+      "undefined confidence",
+      { confidence: undefined },
+      "invalid_enum",
+      "report.confidence"
+    ],
+    [
+      "invalid evidence source",
+      { evidence: [{ source: "comment", detail: "x" }] },
+      "invalid_enum",
+      "report.evidence[0].source"
+    ],
+    [
+      "unexpected top-level key",
+      { labels: ["unsafe private value"] },
+      "unexpected_key",
+      "report.*"
+    ],
+    [
+      "unexpected nested key",
+      { missing_context: [{ category: "x", detail: "y", labels: ["unsafe"] }] },
+      "unexpected_key",
+      "report.missing_context[0].*"
+    ],
+    [
+      "blank missing context detail",
+      { missing_context: [{ category: "x", detail: " " }] },
+      "empty_string",
+      "report.missing_context[0].detail"
+    ]
+  ])(
+    "reports safe validation metadata for %s",
+    (_caseName, override, expectedReason, expectedPath) => {
+      try {
+        validatePreflightReport({
+          ...validReport,
+          ...override
+        })
+        throw new Error("Expected validation to fail")
+      } catch (error) {
+        expect(error).toBeInstanceOf(PreflightReportValidationError)
+        expect(error).toMatchObject({
+          reason: expectedReason,
+          path: expectedPath
+        })
+      }
+    }
+  )
+
+  it("reports missing-key metadata when a required top-level key is absent", () => {
+    const { confidence: _confidence, ...reportWithoutConfidence } = validReport
+
+    try {
+      validatePreflightReport(reportWithoutConfidence)
+      throw new Error("Expected validation to fail")
+    } catch (error) {
+      expect(error).toBeInstanceOf(PreflightReportValidationError)
+      expect(error).toMatchObject({
+        reason: "missing_key",
+        path: "report.confidence"
+      })
+    }
+  })
+
+  it.each([
     "labels",
     "assignees",
     "checks",

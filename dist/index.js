@@ -35434,7 +35434,7 @@ async function run() {
                     report = createInvalidLlmReportFallback();
                 }
                 else if (error instanceof report_schema_js_1.PreflightReportValidationError) {
-                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.schema_validation_failed. Posting safe fallback report.`);
+                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.schema_validation_failed.${error.reason}.${formatValidationPath(error.path)}. Posting safe fallback report.`);
                     report = createInvalidLlmReportFallback();
                 }
                 else {
@@ -35460,6 +35460,9 @@ async function run() {
         const message = error instanceof Error ? error.message : String(error);
         core.setFailed(`Setup error: ${message}`);
     }
+}
+function formatValidationPath(path) {
+    return path.replace(/[^A-Za-z0-9_[\].*]/g, "_");
 }
 function createInvalidLlmReportFallback() {
     return {
@@ -36149,27 +36152,31 @@ const EVIDENCE_SOURCES = new Set([
     "precheck"
 ]);
 class PreflightReportValidationError extends Error {
-    constructor(message = "Invalid preflight report") {
+    reason;
+    path;
+    constructor(reason = "invalid_type", path = "report", message = "Invalid preflight report") {
         super(message);
         this.name = "PreflightReportValidationError";
+        this.reason = reason;
+        this.path = path;
     }
 }
 exports.PreflightReportValidationError = PreflightReportValidationError;
 function validatePreflightReport(raw) {
-    const report = requirePlainObject(raw);
-    rejectUnexpectedKeys(report);
-    const riskExplanation = requireString(report.risk_explanation).trim();
+    const report = requirePlainObject(raw, "report");
+    rejectUnexpectedKeys(report, PREFLIGHT_REPORT_KEYS, "report");
+    const riskExplanation = requireString(report.risk_explanation, "report.risk_explanation").trim();
     if (riskExplanation.length === 0) {
-        throwInvalidReport();
+        throwInvalidReport("empty_string", "report.risk_explanation");
     }
     return {
-        status: requireEnum(report.status, PREFLIGHT_STATUSES),
-        missing_context: normalizeMissingContextItems(report.missing_context),
+        status: requireEnum(report.status, PREFLIGHT_STATUSES, "report.status"),
+        missing_context: normalizeMissingContextItems(report.missing_context, "report.missing_context"),
         risk_explanation: riskExplanation,
-        suggested_questions: normalizeChecklistItems(report.suggested_questions),
-        draft_acceptance_criteria: normalizeChecklistItems(report.draft_acceptance_criteria),
-        confidence: requireEnum(report.confidence, CONFIDENCE_VALUES),
-        evidence: normalizeEvidenceItems(report.evidence)
+        suggested_questions: normalizeChecklistItems(report.suggested_questions, "report.suggested_questions"),
+        draft_acceptance_criteria: normalizeChecklistItems(report.draft_acceptance_criteria, "report.draft_acceptance_criteria"),
+        confidence: requireEnum(report.confidence, CONFIDENCE_VALUES, "report.confidence"),
+        evidence: normalizeEvidenceItems(report.evidence, "report.evidence")
     };
 }
 function applyConservativeStatusPolicy(report) {
@@ -36188,80 +36195,83 @@ function determineConservativeStatus(report) {
     }
     return "needs_clarification";
 }
-function normalizeMissingContextItems(raw) {
-    return requireArray(raw).map((item) => {
-        const object = requirePlainObject(item);
-        rejectUnexpectedKeys(object, MISSING_CONTEXT_ITEM_KEYS);
-        const category = requireNonEmptyTrimmedString(object.category);
-        const detail = requireNonEmptyTrimmedString(object.detail);
+function normalizeMissingContextItems(raw, path) {
+    return requireArray(raw, path).map((item, index) => {
+        const itemPath = `${path}[${index}]`;
+        const object = requirePlainObject(item, itemPath);
+        rejectUnexpectedKeys(object, MISSING_CONTEXT_ITEM_KEYS, itemPath);
+        const category = requireNonEmptyTrimmedString(object.category, `${itemPath}.category`);
+        const detail = requireNonEmptyTrimmedString(object.detail, `${itemPath}.detail`);
         return { category, detail };
     });
 }
-function normalizeChecklistItems(raw) {
-    return requireArray(raw).map((item) => {
-        const object = requirePlainObject(item);
-        rejectUnexpectedKeys(object, CHECKLIST_ITEM_KEYS);
-        const text = requireNonEmptyTrimmedString(object.text);
+function normalizeChecklistItems(raw, path) {
+    return requireArray(raw, path).map((item, index) => {
+        const itemPath = `${path}[${index}]`;
+        const object = requirePlainObject(item, itemPath);
+        rejectUnexpectedKeys(object, CHECKLIST_ITEM_KEYS, itemPath);
+        const text = requireNonEmptyTrimmedString(object.text, `${itemPath}.text`);
         return { text };
     });
 }
-function normalizeEvidenceItems(raw) {
-    return requireArray(raw).map((item) => {
-        const object = requirePlainObject(item);
-        rejectUnexpectedKeys(object, EVIDENCE_ITEM_KEYS);
-        const source = requireEnum(object.source, EVIDENCE_SOURCES);
-        const detail = requireNonEmptyTrimmedString(object.detail);
+function normalizeEvidenceItems(raw, path) {
+    return requireArray(raw, path).map((item, index) => {
+        const itemPath = `${path}[${index}]`;
+        const object = requirePlainObject(item, itemPath);
+        rejectUnexpectedKeys(object, EVIDENCE_ITEM_KEYS, itemPath);
+        const source = requireEnum(object.source, EVIDENCE_SOURCES, `${itemPath}.source`);
+        const detail = requireNonEmptyTrimmedString(object.detail, `${itemPath}.detail`);
         return { source, detail };
     });
 }
-function rejectUnexpectedKeys(report, allowedKeys = PREFLIGHT_REPORT_KEYS) {
+function rejectUnexpectedKeys(report, allowedKeys, path) {
     for (const key of Object.keys(report)) {
         if (!allowedKeys.has(key)) {
-            throwInvalidReport();
+            throwInvalidReport("unexpected_key", `${path}.*`);
         }
     }
     for (const key of allowedKeys) {
         if (!Object.prototype.hasOwnProperty.call(report, key)) {
-            throwInvalidReport();
+            throwInvalidReport("missing_key", `${path}.${key}`);
         }
     }
 }
-function requirePlainObject(raw) {
+function requirePlainObject(raw, path) {
     if (typeof raw !== "object" ||
         raw === null ||
         Array.isArray(raw) ||
         Object.getPrototypeOf(raw) !== Object.prototype) {
-        throwInvalidReport();
+        throwInvalidReport("not_plain_object", path);
     }
     return raw;
 }
-function requireArray(raw) {
+function requireArray(raw, path) {
     if (!Array.isArray(raw)) {
-        throwInvalidReport();
+        throwInvalidReport("invalid_type", path);
     }
     return raw;
 }
-function requireString(raw) {
+function requireString(raw, path) {
     if (typeof raw !== "string") {
-        throwInvalidReport();
+        throwInvalidReport("invalid_type", path);
     }
     return raw;
 }
-function requireNonEmptyTrimmedString(raw) {
-    const value = requireString(raw).trim();
+function requireNonEmptyTrimmedString(raw, path) {
+    const value = requireString(raw, path).trim();
     if (value.length === 0) {
-        throwInvalidReport();
+        throwInvalidReport("empty_string", path);
     }
     return value;
 }
-function requireEnum(raw, values) {
+function requireEnum(raw, values, path) {
     if (typeof raw !== "string" || !values.has(raw)) {
-        throwInvalidReport();
+        throwInvalidReport("invalid_enum", path);
     }
     return raw;
 }
-function throwInvalidReport() {
-    throw new PreflightReportValidationError();
+function throwInvalidReport(reason, path) {
+    throw new PreflightReportValidationError(reason, path);
 }
 
 

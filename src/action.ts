@@ -86,7 +86,7 @@ export async function run(): Promise<void> {
           report = createInvalidLlmReportFallback()
         } else if (error instanceof PreflightReportValidationError) {
           core.info(
-            `LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.schema_validation_failed. Posting safe fallback report.`
+            `LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.schema_validation_failed.${error.reason}.${formatValidationPath(error.path)}. Posting safe fallback report.`
           )
           report = createInvalidLlmReportFallback()
         } else {
@@ -123,6 +123,10 @@ export async function run(): Promise<void> {
     const message = error instanceof Error ? error.message : String(error)
     core.setFailed(`Setup error: ${message}`)
   }
+}
+
+function formatValidationPath(path: string): string {
+  return path.replace(/[^A-Za-z0-9_[\].*]/g, "_")
 }
 
 function createInvalidLlmReportFallback(): PreflightReport {
