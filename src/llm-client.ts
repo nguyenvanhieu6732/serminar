@@ -63,6 +63,11 @@ export class LlmOutputParseError extends Error {
   }
 }
 
+const NON_EMPTY_STRING_SCHEMA = {
+  type: "string",
+  pattern: "\\S"
+} as const
+
 export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
   type: "json_schema",
   name: "preflight_report",
@@ -91,12 +96,12 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
           additionalProperties: false,
           required: ["category", "detail"],
           properties: {
-            category: { type: "string" },
-            detail: { type: "string" }
+            category: NON_EMPTY_STRING_SCHEMA,
+            detail: NON_EMPTY_STRING_SCHEMA
           }
         }
       },
-      risk_explanation: { type: "string" },
+      risk_explanation: NON_EMPTY_STRING_SCHEMA,
       suggested_questions: {
         type: "array",
         items: {
@@ -104,7 +109,7 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
           additionalProperties: false,
           required: ["text"],
           properties: {
-            text: { type: "string" }
+            text: NON_EMPTY_STRING_SCHEMA
           }
         }
       },
@@ -115,7 +120,7 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
           additionalProperties: false,
           required: ["text"],
           properties: {
-            text: { type: "string" }
+            text: NON_EMPTY_STRING_SCHEMA
           }
         }
       },
@@ -134,7 +139,7 @@ export const PREFLIGHT_REPORT_RESPONSE_FORMAT = {
               type: "string",
               enum: ["title", "body", "precheck"]
             },
-            detail: { type: "string" }
+            detail: NON_EMPTY_STRING_SCHEMA
           }
         }
       }

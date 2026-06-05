@@ -212,6 +212,29 @@ describe("OpenAiLlmClient", () => {
       "medium",
       "high"
     ])
+    expect(request.text.format.schema.properties.risk_explanation).toEqual({
+      type: "string",
+      pattern: "\\S"
+    })
+    expect(
+      request.text.format.schema.properties.missing_context.items.properties
+        .category
+    ).toEqual({ type: "string", pattern: "\\S" })
+    expect(
+      request.text.format.schema.properties.missing_context.items.properties
+        .detail
+    ).toEqual({ type: "string", pattern: "\\S" })
+    expect(
+      request.text.format.schema.properties.suggested_questions.items.properties
+        .text
+    ).toEqual({ type: "string", pattern: "\\S" })
+    expect(
+      request.text.format.schema.properties.draft_acceptance_criteria.items
+        .properties.text
+    ).toEqual({ type: "string", pattern: "\\S" })
+    expect(
+      request.text.format.schema.properties.evidence.items.properties.detail
+    ).toEqual({ type: "string", pattern: "\\S" })
     expect(JSON.stringify(request)).not.toContain("## Dev Ticket Preflight")
     expect(JSON.stringify(request)).not.toContain("raw freeform")
   })
