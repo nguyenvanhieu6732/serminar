@@ -522,7 +522,7 @@ describe("run", () => {
       })
     ]
   ])(
-    "fails safely when LLM output is invalid: %s",
+    "posts a safe fallback when LLM output is invalid: %s",
     async (_caseName, outputText) => {
       const githubToken = "gh-secret-token"
       const openaiApiKey = "openai-secret-key"
@@ -538,12 +538,17 @@ describe("run", () => {
         "LLM structured analysis requested for issue #42."
       )
       expect(mockedCore.info).toHaveBeenCalledWith(
-        "LLM structured analysis failed validation for issue #42: invalid_report."
+        "LLM structured analysis failed validation for issue #42: invalid_report. Posting safe fallback report."
       )
-      expect(mockedCore.setFailed).toHaveBeenCalledWith(
-        "LLM structured analysis failed validation: invalid_report"
+      expect(mockCreateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          issue_number: 42,
+          body: expect.stringContaining(
+            "A valid structured analysis report was not available for this run."
+          )
+        })
       )
-      expect(mockCreateComment).not.toHaveBeenCalled()
+      expect(mockedCore.setFailed).not.toHaveBeenCalled()
       expect(mockedCore.info).not.toHaveBeenCalledWith(
         expect.stringContaining(issueLabeledPayload.issue.title)
       )

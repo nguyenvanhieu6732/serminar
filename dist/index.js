@@ -35431,13 +35431,14 @@ async function run() {
             catch (error) {
                 if (error instanceof llm_client_js_1.LlmOutputParseError ||
                     error instanceof report_schema_js_1.PreflightReportValidationError) {
-                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report.`);
-                    core.setFailed("LLM structured analysis failed validation: invalid_report");
+                    core.info(`LLM structured analysis failed validation for issue #${llmInput.logMetadata.issueNumber}: invalid_report. Posting safe fallback report.`);
+                    report = createInvalidLlmReportFallback();
+                }
+                else {
+                    core.info(`LLM structured analysis failed for issue #${llmInput.logMetadata.issueNumber}: provider_error.`);
+                    core.setFailed("LLM structured analysis failed: provider_error");
                     return;
                 }
-                core.info(`LLM structured analysis failed for issue #${llmInput.logMetadata.issueNumber}: provider_error.`);
-                core.setFailed("LLM structured analysis failed: provider_error");
-                return;
             }
             await postReport(config.githubToken, parseResult.issue, report);
             return;
@@ -35456,6 +35457,31 @@ async function run() {
         const message = error instanceof Error ? error.message : String(error);
         core.setFailed(`Setup error: ${message}`);
     }
+}
+function createInvalidLlmReportFallback() {
+    return {
+        status: "needs_clarification",
+        missing_context: [
+            {
+                category: "automated_analysis",
+                detail: "A valid structured analysis report was not available for this run."
+            }
+        ],
+        risk_explanation: "The work artifact should be reviewed directly because automated structured analysis could not produce a valid advisory report.",
+        suggested_questions: [
+            {
+                text: "Can the actor, expected behavior, acceptance criteria, and failure behavior be confirmed from the issue?"
+            }
+        ],
+        draft_acceptance_criteria: [],
+        confidence: "low",
+        evidence: [
+            {
+                source: "body",
+                detail: "Automated structured analysis did not return a valid report."
+            }
+        ]
+    };
 }
 async function postReport(githubToken, issue, report) {
     let approvedReport;
